@@ -343,11 +343,19 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
 
     // Pass 2 — composite cached per-cell sprite (texture + glow + lighting).
     // Each sprite is built once per (biomeId, q, r, mask, hexSize) and reused
-    // across frames. Replaces ~100 canvas operations per cell with one drawImage.
+    // across frames. Sprites are baked at SPRITE_SCALE× backing-store resolution
+    // (≥ devicePixelRatio) so they don't blur on HiDPI displays — drawImage
+    // here passes EXPLICIT world-pixel dst size to scale crisply.
     for (const b of biomed) {
       if (!b.biome) continue;
       const sprite = getBiomeSprite(b.biome, b.q, b.r, grid.hexSize, b.mask);
-      raw.drawImage(sprite.canvas, b.cx - sprite.half, b.cy - sprite.half);
+      raw.drawImage(
+        sprite.canvas,
+        b.cx - sprite.half,
+        b.cy - sprite.half,
+        sprite.dim,
+        sprite.dim,
+      );
     }
 
     // ── TILE LAYER (features on top of biome) ──

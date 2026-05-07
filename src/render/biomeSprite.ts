@@ -17,6 +17,11 @@ import { pathDisplacedHex } from "./displaced";
 
 const SPRITE_MARGIN = 1.3; // hex extends up to size*0.18 past edge; 1.3 gives slack
 const CACHE_LIMIT = 5000;
+// Bake sprites at devicePixelRatio so HiDPI displays don't get a blurry
+// upscale when drawImage composites them onto the DPR-scaled main canvas.
+// Also gives some slack for zoom-in before pixellation kicks in.
+const DPR = typeof window !== "undefined" ? Math.max(1, window.devicePixelRatio || 1) : 1;
+const SPRITE_SCALE = Math.max(2, Math.ceil(DPR * 1.5)); // floor 2× so 1× displays still look crisp on zoom-in
 
 const cache = new Map<string, HTMLCanvasElement>();
 
@@ -44,12 +49,14 @@ function buildSprite(
   const half = Math.ceil(size * SPRITE_MARGIN);
   const dim = half * 2;
   const c = document.createElement("canvas");
-  c.width = dim;
-  c.height = dim;
+  // Backing store at SPRITE_SCALE× resolution; logical coords stay at world units.
+  c.width = dim * SPRITE_SCALE;
+  c.height = dim * SPRITE_SCALE;
   const ctx = c.getContext("2d");
   if (!ctx) return c;
+  ctx.scale(SPRITE_SCALE, SPRITE_SCALE);
 
-  // Local coordinate system: center of hex at (half, half).
+  // Local coordinate system: center of hex at (half, half) in world units.
   const cx = half;
   const cy = half;
 
@@ -78,6 +85,7 @@ function buildSprite(
 export interface BiomeSprite {
   canvas: HTMLCanvasElement;
   half: number; // half-dimension in world pixels (centre→edge of sprite)
+  dim: number;  // world-pixel dimension (2 × half) for explicit drawImage sizing
 }
 
 export function getBiomeSprite(
@@ -101,5 +109,6 @@ export function getBiomeSprite(
     }
     cache.set(key, canvas);
   }
-  return { canvas, half: Math.ceil(size * SPRITE_MARGIN) };
+  const half = Math.ceil(size * SPRITE_MARGIN);
+  return { canvas, half, dim: half * 2 };
 }
