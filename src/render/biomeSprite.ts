@@ -7,13 +7,14 @@
 // changes the visual content invalidates the sprite.
 
 import type { BiomeDef } from "../tiles/types";
+import { axialToPixel } from "../hex/hex";
 import {
   drawHexGlow,
   drawHexLighting,
   drawHexTexture,
   pathHex,
 } from "./drawHex";
-import { pathDisplacedHex } from "./displaced";
+import { displacedHexPolygonForCell } from "./displaced";
 
 const SPRITE_MARGIN = 1.3; // hex extends up to size*0.18 past edge; 1.3 gives slack
 const CACHE_LIMIT = 2000;  // each sprite ~94×3 px² × 4B ≈ 320KB → max ~640MB worst-case; realistic ≪
@@ -58,14 +59,30 @@ function buildSprite(
   if (!ctx) return c;
   ctx.scale(SPRITE_SCALE, SPRITE_SCALE);
 
-  // Local coordinate system: center of hex at (half, half) in world units.
+  // Critical: compute the wavy displaced polygon in WORLD coordinates so the
+  // noise field samples line up with adjacent hexes. If we sampled noise in
+  // sprite-local coords (everyone centred at (half, half)), neighbours would
+  // sample at mismatched offsets (e.g. A's right midpoint at (half+apothem)
+  // vs B's left midpoint at (half-apothem)) → different displacements → tiny
+  // gaps and overlapping texture across the shared edge.
+  const world = axialToPixel(q, r, size);
+  const polyWorld = displacedHexPolygonForCell(world.x, world.y, size, mask);
+
+  // Translate world polygon into sprite-local coords (centre of hex at (half, half)).
+  const dx = half - world.x;
+  const dy = half - world.y;
+
   const cx = half;
   const cy = half;
 
   // Pass 1 — texture inside displaced (wavy) clip.
   ctx.save();
   ctx.beginPath();
-  pathDisplacedHex(ctx, q, r, cx, cy, size, mask);
+  ctx.moveTo(polyWorld[0].x + dx, polyWorld[0].y + dy);
+  for (let i = 1; i < polyWorld.length; i++) {
+    ctx.lineTo(polyWorld[i].x + dx, polyWorld[i].y + dy);
+  }
+  ctx.closePath();
   ctx.clip();
   drawHexTexture(ctx, q, r, cx, cy, size, biome);
   ctx.restore();
