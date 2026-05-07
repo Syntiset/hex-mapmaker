@@ -388,7 +388,16 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
     }
 
     // ── BIOME LAYER ──
-    // Pass 1 — composite cached per-cell sprite (texture + glow + lighting).
+    // Pass 1 — soft radial blob with biome's base color (no clip).
+    // Adjacent biome blobs overlap and their alpha tails blend cooler/warmer
+    // biome colours into a smooth gradient on the seam. Runtime, not baked
+    // into sprites — the blob extends past hex into neighbour territory.
+    for (const b of biomed) {
+      if (!b.biome) continue;
+      drawBiomeBlob(raw, b.cx, b.cy, grid.hexSize, b.biome);
+    }
+
+    // Pass 2 — composite cached per-cell sprite (texture + glow + lighting).
     // Sprite is built once per (biomeId, q, r, hexSize) and reused across
     // frames. Sprites are baked at SPRITE_SCALE× backing-store resolution so
     // they stay crisp on HiDPI; drawImage passes explicit world-pixel size.
@@ -402,15 +411,6 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
         sprite.dim,
         sprite.dim,
       );
-    }
-
-    // Pass 2 — fringe blob AFTER all biome sprites. Each blob is alpha-0 in
-    // its own hex interior and peaks at the hex edge, fading into neighbour
-    // territory. Drawn last among biome passes so the fringe lands on top of
-    // all six neighbour sprites symmetrically (regardless of iteration order).
-    for (const b of biomed) {
-      if (!b.biome) continue;
-      drawBiomeBlob(raw, b.cx, b.cy, grid.hexSize, b.biome);
     }
 
     // ── TILE LAYER (features on top of biome) ──
