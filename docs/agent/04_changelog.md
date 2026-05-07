@@ -1,5 +1,23 @@
 # 04_changelog.md
 
+## 2026-05-07 — v1.5.0 — Electron .exe + PWA-обёртка
+
+Web-приложение теперь можно запускать как нативное Windows-приложение и устанавливать как PWA на любом устройстве с современным браузером.
+
+- **Electron desktop:** `electron/main.cjs` — главный процесс (BrowserWindow 1400×900, sandbox+contextIsolation+nodeIntegration:false, dev/prod ветка по `app.isPackaged`). Меню скрыто (`autoHideMenuBar: true`). В dev — грузит `http://localhost:5173` + DevTools; в prod — `dist/index.html` локально.
+- **Сборка:** `electron-builder` с двумя target'ами: NSIS installer и portable. Артефакты в `release/`. Output:
+  - `Hex Map Maker-X.X.X-x64.exe` (NSIS, ~100 МБ)
+  - `Hex Map Maker-X.X.X-portable.exe` (single file, ~100 МБ)
+  Code-sign не настроен — Windows SmartScreen покажет «Unknown publisher» при первом запуске.
+- **Скрипты:**
+  - `npm run electron:dev` — concurrently запускает Vite dev + Electron, ждёт через `wait-on http://localhost:5173`. Hot reload работает в Electron-окне.
+  - `npm run electron:pack` — сборка в `release/win-unpacked/` без installer (для дебага).
+  - `npm run electron:build` — полная сборка installer + portable.
+- **PWA:** добавлен `vite-plugin-pwa` с `registerType: 'autoUpdate'`, manifest (`favicon.svg` как иконка для всех размеров через `purpose: 'any maskable'`), service worker от Workbox. На Chrome/Edge desktop появится кнопка «Установить приложение», на Android Chrome — «Добавить на главный экран» (поведение fullscreen-PWA, оффлайн через precache).
+- **Vite config:** `base: './'` — относительные пути в build, чтобы тот же `dist/` грузился из `file://` (Electron) и из любого статичного хостинга.
+- **package.json:** version `0.0.0 → 1.4.2`, добавлены `main`, `description`, `author`, секция `build` для electron-builder.
+- **`.gitignore`:** добавлены `release/` (артефакты Electron) и `dev-dist/` (PWA dev SW).
+
 ## 2026-05-07 — v1.4.2 — Кнопка помощи в StatusBar, x2 vegetation, фикс микросетки
 
 - **Help-кнопка в StatusBar:** `helpOpen` поднят в `App.tsx`, `HelpModal` рендерится один раз там же. `TopBar` и `StatusBar` получают `onOpenHelp` пропом. В StatusBar убрана текстовая подсказка про «полный список», вместо неё кнопка «? Помощь» справа после хинтов.
