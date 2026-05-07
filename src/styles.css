@@ -135,6 +135,83 @@ button:hover { background: #3a3a26; color: var(--accent); }
   background: #1a1a14;
 }
 
+.zoom-overlay {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  background: rgba(20, 20, 14, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px;
+  z-index: 10;
+}
+.zoom-overlay button { padding: 3px 8px; font-size: 11px; }
+.zoom-overlay .zoom-readout {
+  font-size: 11px;
+  color: var(--accent-2);
+  margin-left: 6px;
+  min-width: 38px;
+  text-align: right;
+}
+.palette-categories { display: flex; flex-wrap: wrap; gap: 2px; margin-bottom: 6px; }
+.palette-categories button {
+  flex: 1 1 auto;
+  padding: 3px 6px;
+  font-size: 10px;
+  background: #1a1a12;
+}
+.palette-categories button.active {
+  background: var(--accent-2);
+  color: #0a0a00;
+  border-color: var(--accent-2);
+}
+.tile-btn { position: relative; }
+.hover-preview {
+  position: fixed;
+  z-index: 100;
+  background: rgba(15, 15, 10, 0.95);
+  border: 1px solid var(--accent-2);
+  padding: 6px;
+  pointer-events: none;
+  border-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+.hover-preview .hp-name {
+  color: var(--accent-2);
+  font-size: 11px;
+  text-align: center;
+  margin-top: 4px;
+}
+.recent-menu { position: relative; display: inline-block; }
+.recent-menu .recent-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  min-width: 240px;
+  z-index: 50;
+  display: none;
+  flex-direction: column;
+}
+.recent-menu.open .recent-list { display: flex; }
+.recent-menu .recent-list button {
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 6px 8px;
+  font-size: 11px;
+}
+.recent-menu .recent-list .empty {
+  padding: 8px;
+  color: #7f7a60;
+  font-size: 11px;
+  font-style: italic;
+}
+
 .statusbar {
   display: flex;
   gap: 18px;

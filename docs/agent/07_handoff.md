@@ -1,47 +1,43 @@
 # 07_handoff.md
 
-## Что было сделано (последняя сессия, 2026-05-07 v1.1.0)
+## Что было сделано (последняя сессия, 2026-05-07 v1.3.0)
 
-**Wavy/displaced функционал удалён целиком.**
+QoL-пакет из 6 пунктов из `08_ideas.md`, реализован одной серией:
 
-После v1.0.0 (per-cell sprite cache) пошла серия итераций (v1.0.6–v1.0.15) пытаясь починить визуальные артефакты на стыках биомов: «обрезанные» точки, «отъедание» одного биома другим, светлые полосы вдоль швов. Каждая фикса перемещала проблему в другое место. Корень был в **двунаправленной wavy-границе** (vector noise) + sample-vs-clip mismatch (см. ISSUE-003 в `06_known_issues.md` для подробного разбора).
-
-После force-push отката до v1.0.5 (`ab1ad98`) и нескольких попыток фикса (sample-в-полигоне, inward-only wavy) пришли к выводу: wavy не оправдывает сложности. **Удалён модуль целиком.**
-
-Что удалено:
-- `src/render/displaced.ts` — модуль удалён физически
-- `pointInPolygon`, `sampleInWavyPolygon`, `sampleInSafeHex`, `sampleArea` в `drawHex.ts`
-- `EDGE_TO_NEIGHBOR_OFFSET` / `clearDisplacedCache` импорты
-- `neighborMask` вычисление в `drawScene`
-- `mask` поле в sprite cache key
-
-Что вернулось/упрощено:
-- Чистые шестиугольные рёбра гексов
-- Soft blob blending: runtime `drawBiomeBlob` (radial gradient до 1.25*size с alpha falloff) перетекает в соседей
-- Stipple/decoration — простой rectangular sampling
-- Sprite cache: `(biomeId, q, r, hexSize)`
+1. **Hotkeys** в `src/App.tsx` — клавиши инструментов (B/T/R/E/L), Space-hold pan, цифры 1–9 для палитры. Ctrl+Z/Y уже были, оставлены.
+2. **Zoom presets + Fit** — view-state поднят в App, overlay-кнопки в `canvas-host`. `ViewState` экспортируется из `HexGridCanvas`.
+3. **Категории тайлов** — `FALLOUT_TILE_CATEGORIES` (7 групп) в `src/tiles/fallout.ts`, таб-бар в `TilePalette` со state `category`.
+4. **Hover preview** — фиксированный popup 140px на курсоре, для биомов и тайлов.
+5. **Recent files** — `src/io/recents.ts` (localStorage), dropdown в `TopBar`, до 5 записей.
+6. **Touch pinch-zoom** — `pointersRef` + `pinchRef` в `HexGridCanvas`, `touch-action: none` на Stage.
 
 ## На чём остановились
-- v1.1.0 коммит, push на `origin/main`, бэкап локально перед чисткой
-- Сборка зелёная, ждём подтверждения визуала на тесте
+- v1.3.0, билд зелёный (`npm run build`).
+- В браузере вживую не тестировал — пользователь обещал прокатать сам.
 
 ## Что проверить следующим шагом
-1. `npm run dev` — нарисовать карту со смесью биомов, убедиться: рёбра ровные шестиугольные, цвета соседей мягко перетекают через blob alpha falloff
-2. Производительность: `~50×50` карта, pan/zoom — без лагов (sprite cache работает)
-3. Save/load JSON v3 — round-trip чистый
-4. Палитровые превью (биомы и тайлы в сайдбаре) — без артефактов
+1. Все хоткеи живые: B/T/R/E/L, 1-9, Space-hold, Ctrl+Z/Y. Особенно проверить, что Space возвращает старый инструмент.
+2. Zoom: 1×/2×/4× центрируют корректно, Fit вмещает полную карту.
+3. Категории палитры: «Все» показывает 35 тайлов, каждая категория — нужное подмножество.
+4. Hover preview не дёргается, не выходит за viewport.
+5. Recent files: save → проявляется в дропдауне; reload страницы — список сохраняется (localStorage).
+6. Touch (если есть тач-устройство): pinch-zoom работает, drag одним пальцем = paint, не скроллит страницу.
 
-## Backlog (что можно делать дальше)
-- Расширение функционала: тонкие настройки blob radius / alpha (в `drawBiomeBlob` хардкод сейчас)
-- Реальные художественные тайлы (PNG-ассеты вместо процедурных) — отдельная итерация
-- Слои / Fog of War для показа игрокам
-- Кисть размером > 1
-- Импорт фоновой картинки и наложение прозрачной hex-сетки сверху
+## Backlog (что осталось из `08_ideas.md`)
+- Auto-save в localStorage (страховка от крэша)
+- Brush size > 1
+- Bucket fill
+- Map metadata (title/author/description)
+- Resize map
+- Mini-map / координаты hex / layer toggles
+- Multi-line labels, стили подписей
+- Color-blind palette / High-contrast
 
 ## Полезные файлы
-- `src/render/drawHex.ts` — все рендер-функции, decoration switch
-- `src/render/biomeSprite.ts` — sprite cache, чистая архитектура без wavy
-- `src/render/noise.ts` — низкоуровневый шум (используется для hash в stipple)
-- `src/components/HexGridCanvas.tsx` — drawScene, biomes/tiles разделены
-- `src/tiles/fallout.ts` — палитра 14 биомов + 35 тайлов
-- `docs/agent/06_known_issues.md` — ISSUE-003 разбор wavy-сериала (для будущей справки если когда-то снова захочется)
+- `src/App.tsx` — глобальные хоткеи, view-state, fit-to-screen, zoom overlay
+- `src/components/HexGridCanvas.tsx` — controlled view-state через пропы, pinch-zoom
+- `src/components/TilePalette.tsx` — категории + hover preview
+- `src/components/TopBar.tsx` — recent files dropdown
+- `src/io/recents.ts` — localStorage helpers
+- `src/tiles/fallout.ts` — `FALLOUT_TILE_CATEGORIES`
+- `src/styles.css` — `.zoom-overlay`, `.palette-categories`, `.hover-preview`, `.recent-menu`

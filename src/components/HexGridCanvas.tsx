@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useMemo, useRef } from "react";
 import { Stage, Layer, Shape, Text, Group, Rect } from "react-konva";
 import type Konva from "konva";
 import {
@@ -22,16 +22,25 @@ import { clearTileSpriteCache, getTileSprite } from "../render/tileSprite";
 
 interface PixelPt { x: number; y: number }
 
+export interface ViewState { scale: number; pos: { x: number; y: number } }
+
 interface Props {
   width: number;
   height: number;
   onHover: (key: string | null) => void;
+  viewState: ViewState;
+  setViewState: (v: ViewState | ((prev: ViewState) => ViewState)) => void;
 }
 
 export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanvas(
-  { width, height, onHover },
+  { width, height, onHover, viewState, setViewState },
   ref,
 ) {
+  const scale = viewState.scale;
+  const pos = viewState.pos;
+  const setScale = (s: number) => setViewState((v) => ({ ...v, scale: s }));
+  const setPos = (p: { x: number; y: number } | ((prev: { x: number; y: number }) => { x: number; y: number })) =>
+    setViewState((v) => ({ ...v, pos: typeof p === "function" ? p(v.pos) : p }));
   const grid = useMapStore((s) => s.grid);
   const cells = useMapStore((s) => s.cells);
   const tiles = useMapStore((s) => s.tiles);
@@ -64,11 +73,11 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
   const hw = hexWidth(grid.hexSize);
   const hh = hexHeight(grid.hexSize);
 
-  const [scale, setScale] = useState(1);
-  const [pos, setPos] = useState({ x: hw, y: hh });
   const dragging = useRef(false);
   const painting = useRef(false);
   const lastKey = useRef<string | null>(null);
+  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinchRef = useRef<{ dist: number; cx: number; cy: number; scale: number } | null>(null);
 
   // Recenter on grid change.
   useEffect(() => {
@@ -194,7 +203,27 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
   function handlePointerDown(e: Konva.KonvaEventObject<PointerEvent>) {
     const stage = e.target.getStage();
     if (!stage) return;
-    if (tool === "pan" || e.evt.button === 1 || e.evt.button === 2) {
+    const evt = e.evt;
+    pointersRef.current.set(evt.pointerId, { x: evt.clientX, y: evt.clientY });
+
+    // Two-finger pinch gesture: cancel any in-progress paint/road, capture state.
+    if (pointersRef.current.size === 2) {
+      const pts = Array.from(pointersRef.current.values());
+      const dx = pts[0].x - pts[1].x, dy = pts[0].y - pts[1].y;
+      pinchRef.current = {
+        dist: Math.hypot(dx, dy),
+        cx: (pts[0].x + pts[1].x) / 2,
+        cy: (pts[0].y + pts[1].y) / 2,
+        scale,
+      };
+      if (painting.current && tool === "road") commitRoadPath();
+      painting.current = false;
+      lastKey.current = null;
+      dragging.current = false;
+      return;
+    }
+
+    if (tool === "pan" || evt.button === 1 || evt.button === 2) {
       dragging.current = true;
       return;
     }
@@ -226,6 +255,33 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
   function handlePointerMove(e: Konva.KonvaEventObject<PointerEvent>) {
     const stage = e.target.getStage();
     if (!stage) return;
+    const evt = e.evt;
+
+    // Pinch update — two pointers active.
+    if (pointersRef.current.has(evt.pointerId)) {
+      pointersRef.current.set(evt.pointerId, { x: evt.clientX, y: evt.clientY });
+    }
+    if (pointersRef.current.size === 2 && pinchRef.current) {
+      const pts = Array.from(pointersRef.current.values());
+      const dx = pts[0].x - pts[1].x, dy = pts[0].y - pts[1].y;
+      const dist = Math.hypot(dx, dy);
+      const cx = (pts[0].x + pts[1].x) / 2;
+      const cy = (pts[0].y + pts[1].y) / 2;
+      const ratio = dist / Math.max(1, pinchRef.current.dist);
+      const newScale = Math.max(0.15, Math.min(4, pinchRef.current.scale * ratio));
+      // Anchor zoom around current midpoint, plus translate by midpoint delta.
+      setViewState((v) => {
+        const wx = (cx - v.pos.x) / v.scale;
+        const wy = (cy - v.pos.y) / v.scale;
+        return {
+          scale: newScale,
+          pos: { x: cx - wx * newScale, y: cy - wy * newScale },
+        };
+      });
+      pinchRef.current = { dist, cx, cy, scale: newScale };
+      return;
+    }
+
     const world = getWorldPointer(stage);
     if (world) {
       const hx = getHexAtWorld(world);
@@ -258,7 +314,11 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
     else if (tool === "erase") erase(hx.key);
   }
 
-  function handlePointerUp() {
+  function handlePointerUp(e?: Konva.KonvaEventObject<PointerEvent>) {
+    if (e) pointersRef.current.delete(e.evt.pointerId);
+    else pointersRef.current.clear();
+    if (pointersRef.current.size < 2) pinchRef.current = null;
+    if (pointersRef.current.size > 0) return;
     if (painting.current && tool === "road") commitRoadPath();
     painting.current = false;
     dragging.current = false;
@@ -404,9 +464,10 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
         handlePointerUp();
         onHover(null);
       }}
+      onPointerCancel={(e) => handlePointerUp(e)}
       onWheel={handleWheel}
       onContextMenu={(e) => e.evt.preventDefault()}
-      style={{ background: "#1a1a14", cursor: tool === "pan" ? "grab" : "crosshair" }}
+      style={{ background: "#1a1a14", cursor: tool === "pan" ? "grab" : "crosshair", touchAction: "none" }}
     >
       <Layer listening={false}>
         <Shape sceneFunc={drawScene} />

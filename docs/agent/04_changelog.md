@@ -1,5 +1,16 @@
 # 04_changelog.md
 
+## 2026-05-07 — v1.3.0 — QoL пакет: hotkeys, zoom, категории, hover preview, recent, touch
+
+Шесть фич одной серией (приоритеты из `08_ideas.md`).
+
+- **Hotkeys (`src/App.tsx`):** `B`/`T` переключают paint mode (биом/тайл) и активируют кисть, `R` — дорога, `E` — ластик, `L` — подпись. `Space` (hold) — временный pan, отпуск возвращает прежний инструмент. `1`–`9` — выбор биома/тайла по индексу в текущем paintMode. Игнорятся при фокусе на input/textarea/contenteditable. `Ctrl+Z`/`Ctrl+Y`/`Ctrl+Shift+Z` уже были — не трогали.
+- **Zoom-пресеты + Fit:** view-state (scale, pos) поднят из `HexGridCanvas` в `App` через пропы `viewState`/`setViewState` + экспортированный тип `ViewState`. Overlay-блок справа-снизу canvas-host: `1×`/`2×`/`4×`/`Fit` + readout процентов. `Fit` считает bbox по `rectMap(grid)` и подгоняет scale/pos под текущие размеры canvas-host. Zoom-кнопки центрируются вокруг текущего центра viewport.
+- **Категории тайлов:** новый `FALLOUT_TILE_CATEGORIES` в `src/tiles/fallout.ts` (7 групп: Поселения / Руины / Подземелья / Опасности / Растительность / Радиация / Убежища). В `TilePalette` — таб-бар над сеткой тайлов со state `category`. Таб «Все» показывает всё; биомная сетка не группируется (всего 14, помещается).
+- **Hover preview:** `TilePalette` отслеживает hover на кнопках биомов и тайлов, показывает фиксированный popup-`<div>` 140px на курсоре с увеличенным превью + именем + (для тайла) поясняющим «поверх: <биом>».
+- **Recent files (`src/io/recents.ts`):** localStorage `mapmaker.recents.v1`, до 5 записей `{name, savedAt, data: SavedMap}`. Записываются в `pushRecent()` при save/open. В `TopBar` — dropdown «Недавние ▾» с click-outside закрытием. При load из recent — confirm если есть несохранённая работа.
+- **Touch support (pinch-zoom):** `HexGridCanvas` ведёт `pointersRef` (Map) и `pinchRef`. При втором pointer down фиксирует начальную дистанцию + scale, при move с 2 pointer'ами — масштабирует относительно midpoint и переносит. Painting/road в момент входа в pinch отменяются. Pointer up удаляет id, при выходе из pinch очищает ссылку. `touch-action: none` на Stage — браузер не перехватывает жест. `onPointerCancel` тоже подключён.
+
 ## 2026-05-07 — v1.2.0 — Per-cell tile sprite cache
 - Та же оптимизация что для биомов (v1.0.0), но теперь и для тайлов. До этого 3 runtime-прохода per cell per frame: decoration в clean hex clip, glow без клипа, drawIconEnhanced (icon + drop shadow). На иконках типа `megacity` (кластер небоскрёбов), `raider` (палатка + спайк + череп), `factory` (трубы с дымом) — десятки canvas-операций per icon per frame.
 - Добавлен `src/render/tileSprite.ts` параллельно `biomeSprite.ts`. Сигнатура: `getTileSprite(tile, q, r, size)` → запекает (decoration в clean clip + glow без клипа + drawIconEnhanced) в offscreen canvas. `clearTileSpriteCache()` — инвалидация при смене hexSize.

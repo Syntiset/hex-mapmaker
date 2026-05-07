@@ -274,6 +274,53 @@ export const FALLOUT_TILES: TileDef[] = [
 
 export const FALLOUT_DEFAULT = FALLOUT_TILES[0];
 
+// ============================================================
+// Категории тайлов для UI (палитра с табами)
+// ============================================================
+export interface TileCategory {
+  id: string;
+  name: string;
+  tileIds: string[];
+}
+
+export const FALLOUT_TILE_CATEGORIES: TileCategory[] = [
+  {
+    id: "settlements",
+    name: "Поселения",
+    tileIds: ["settlement", "megacity", "trader-post", "diner", "factory", "slum"],
+  },
+  {
+    id: "ruins",
+    name: "Руины",
+    tileIds: ["ruins", "concrete", "tower", "gas", "raider"],
+  },
+  {
+    id: "underground",
+    name: "Подземелья",
+    tileIds: ["mine", "cave-entrance", "quarry"],
+  },
+  {
+    id: "danger",
+    name: "Опасности",
+    tileIds: ["debris", "wreck", "minefield", "crater", "graveyard"],
+  },
+  {
+    id: "vegetation",
+    name: "Растительность",
+    tileIds: ["lone-tree", "sparse-grove", "grove", "dense-forest", "dead-grove", "dense-deadwood", "birch-cluster"],
+  },
+  {
+    id: "radiation",
+    name: "Радиация",
+    tileIds: ["glowing-pool", "mutated-flora", "fungal-bloom"],
+  },
+  {
+    id: "shelter",
+    name: "Убежища",
+    tileIds: ["vault", "vault-sealed", "vault-open", "bunker", "bos-outpost", "enclave-base"],
+  },
+];
+
 export const ROAD_TYPES: RoadType[] = [
   { id: "highway", name: "Шоссе",      color: "#1a1812", width: 0.30, centerLine: "#c8b048" },
   { id: "asphalt", name: "Асфальт",    color: "#2a2620", width: 0.22 },

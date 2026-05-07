@@ -8,6 +8,7 @@
 ## Что уже реализовано
 - Скаффолд Vite + React + TypeScript, зависимости установлены.
 - Каркас памяти (`CLAUDE.md` + `docs/agent/`).
+- **v1.3.0 QoL пакет:** hotkeys (B/T/R/E/L, 1-9, Space-pan, Ctrl+Z/Y), zoom-пресеты 1×/2×/4×/Fit (overlay), категории тайлов в палитре (7 групп + «Все»), hover preview popup, recent files (localStorage, ≤5), touch pinch-zoom (`touch-action: none`).
 - Редактор v1.2.0: hex math, sceneFunc-рендер с viewport culling. **Биом ↔ Тайл архитектура**: биом — окружение/террейн (14 биомов с полной палитрой), тайл — feature/локация (35 тайлов с уникальными иконками для каждой группы, биом-агностичны). Cell хранит `biomeId` + `tileId`. UI: mode toggle «Биом / Тайл», палитра биомов и тайлов в 4 колонки в сайдбаре 360px. Рендер: чистые шестиугольные гексы с **soft blob blending** (radial gradient с alpha falloff в соседа) для мягких цветовых переходов. **Двойной sprite cache** (биомы и тайлы запечены в offscreen canvas) для производительности — на каждый кадр только drawImage'ы. Покраска/стирание (с разделением биом/тайл), undo/redo, инструмент дорог (snap-to-hex-feature и free-hand), удаление дорог по близости к линии, подписи поверх, save/load JSON (v3 с миграцией v1/v2), export PNG.
 
 ## Критические ограничения
@@ -27,4 +28,4 @@
 - Schema JSON — версия 2, есть миграция с v1 (axial keys → world-pixel points для дорог).
 
 ## Дата обновления
-- 2026-05-07 (v1.2.0)
+- 2026-05-07 (v1.3.0)
