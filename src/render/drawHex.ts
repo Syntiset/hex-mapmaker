@@ -96,10 +96,12 @@ export function drawDecoration(
     case "pebbles": {
       const n = Math.round(6 + dec.density * 8);
       for (let i = 0; i < n; i++) {
-        const u = rand(seed, i * 3) - 0.5;
-        const v = rand(seed, i * 3 + 1) - 0.5;
-        const px = cx + u * size * 1.5;
-        const py = cy + v * size * 1.5;
+        // Centre of pebble inside r=0.55*size; pebble half-width up to 0.1*size
+        // → max extent ≈ 0.65*size, safely inside displaced clip.
+        const a = rand(seed, i * 3) * Math.PI * 2;
+        const rad = Math.sqrt(rand(seed, i * 3 + 1)) * size * 0.55;
+        const px = cx + Math.cos(a) * rad;
+        const py = cy + Math.sin(a) * rad;
         const rx = size * (0.05 + rand(seed, i * 3 + 2) * 0.05);
         const ry = rx * (0.55 + rand(seed, i * 3 + 50) * 0.3);
         // shadow under
@@ -120,23 +122,39 @@ export function drawDecoration(
       }
       break;
     }
+    // All decoration positions are constrained to a SAFE INSCRIBED CIRCLE
+    // smaller than the hex apothem (≈0.866*size) minus the worst-case wavy
+    // displacement (0.18*size). Safe radius ≈ 0.62*size — guarantees no
+    // shape-decoration ever crosses the displaced clip regardless of mask.
     case "cracks": {
       const n = Math.round(2 + dec.density * 2);
+      const safeR = size * 0.60; // clamp segment ends to this radius
       ctx.strokeStyle = dec.color;
       ctx.lineWidth = Math.max(1, size * 0.025);
       ctx.lineCap = "round";
       for (let i = 0; i < n; i++) {
-        const sx = cx + (rand(seed, i * 5) - 0.5) * size * 1.3;
-        const sy = cy + (rand(seed, i * 5 + 1) - 0.5) * size * 1.3;
+        const a0 = rand(seed, i * 5) * Math.PI * 2;
+        const r0 = Math.sqrt(rand(seed, i * 5 + 1)) * size * 0.35;
+        const sx = cx + Math.cos(a0) * r0;
+        const sy = cy + Math.sin(a0) * r0;
         const segs = 3 + Math.floor(rand(seed, i * 5 + 2) * 3);
         ctx.beginPath();
         let px = sx, py = sy;
         ctx.moveTo(px, py);
         for (let s = 0; s < segs; s++) {
           const angle = rand(seed, i * 5 + 10 + s) * Math.PI * 2;
-          const len = size * (0.12 + rand(seed, i * 5 + 20 + s) * 0.18);
-          px += Math.cos(angle) * len;
-          py += Math.sin(angle) * len;
+          const len = size * (0.06 + rand(seed, i * 5 + 20 + s) * 0.10);
+          let nx = px + Math.cos(angle) * len;
+          let ny = py + Math.sin(angle) * len;
+          // Clamp end-point onto the safe disk so the crack never wanders
+          // out of the worst-case wavy clip boundary.
+          const dx = nx - cx, dy = ny - cy;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d > safeR) {
+            nx = cx + (dx / d) * safeR;
+            ny = cy + (dy / d) * safeR;
+          }
+          px = nx; py = ny;
           ctx.lineTo(px, py);
         }
         ctx.globalAlpha = 0.7;
@@ -149,10 +167,10 @@ export function drawDecoration(
       const n = Math.round(12 + dec.density * 24);
       ctx.fillStyle = dec.color;
       for (let i = 0; i < n; i++) {
-        const u = rand(seed, i * 4) - 0.5;
-        const v = rand(seed, i * 4 + 1) - 0.5;
-        const px = cx + u * size * 1.7;
-        const py = cy + v * size * 1.7;
+        const a = rand(seed, i * 4) * Math.PI * 2;
+        const rad = Math.sqrt(rand(seed, i * 4 + 1)) * size * 0.62;
+        const px = cx + Math.cos(a) * rad;
+        const py = cy + Math.sin(a) * rad;
         const rr = size * (0.012 + rand(seed, i * 4 + 2) * 0.022);
         ctx.globalAlpha = 0.55 + rand(seed, i * 4 + 3) * 0.4;
         ctx.beginPath();
@@ -168,10 +186,13 @@ export function drawDecoration(
       ctx.lineWidth = Math.max(1, size * 0.025);
       ctx.lineCap = "round";
       for (let i = 0; i < n; i++) {
-        const u = rand(seed, i * 6) - 0.5;
-        const v = rand(seed, i * 6 + 1) - 0.5;
-        const px = cx + u * size * 1.4;
-        const py = cy + v * size * 1.4;
+        // Centre of cluster inside r=0.50*size; blades extend up to 0.16*size
+        // upward → tuft tip at most 0.66*size from centre, still inside safe zone
+        // when the base is in the upper half of safe disk.
+        const a = rand(seed, i * 6) * Math.PI * 2;
+        const rad = Math.sqrt(rand(seed, i * 6 + 1)) * size * 0.50;
+        const px = cx + Math.cos(a) * rad;
+        const py = cy + Math.sin(a) * rad;
         const blades = 3 + Math.floor(rand(seed, i * 6 + 2) * 3);
         for (let b = 0; b < blades; b++) {
           const ox = (b - blades / 2) * size * 0.04;
@@ -191,11 +212,11 @@ export function drawDecoration(
       ctx.lineWidth = Math.max(1, size * 0.025);
       ctx.lineCap = "round";
       for (let i = 0; i < n; i++) {
-        const u = rand(seed, i * 4) - 0.5;
-        const v = rand(seed, i * 4 + 1) - 0.5;
-        const px = cx + u * size * 1.2;
-        const py = cy + v * size * 1.2;
-        const rr = size * (0.10 + rand(seed, i * 4 + 2) * 0.12);
+        const a = rand(seed, i * 4) * Math.PI * 2;
+        const rad = Math.sqrt(rand(seed, i * 4 + 1)) * size * 0.40;
+        const px = cx + Math.cos(a) * rad;
+        const py = cy + Math.sin(a) * rad;
+        const rr = size * (0.08 + rand(seed, i * 4 + 2) * 0.10);
         const start = rand(seed, i * 4 + 3) * Math.PI * 2;
         const len = Math.PI * (0.6 + rand(seed, i * 4 + 4) * 0.6);
         ctx.globalAlpha = 0.5 + rand(seed, i * 4 + 5) * 0.4;
