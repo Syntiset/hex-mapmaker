@@ -217,6 +217,10 @@ export function drawDecoration(
 // Drawn WITHOUT clip so neighboring blobs overlap and their colors blend
 // optically along the seam. This is the primary mechanism for smooth biome
 // transitions — wavy clip handles only stipple/decoration patterns above.
+// Fringe-only blob: transparent inside hex (alpha 0 up to ~0.7 of hex radius),
+// peak alpha at the hex edge, fades to 0 in neighbour territory at 1.25*size.
+// Must be drawn AFTER all biome sprites so the fringe lands symmetrically
+// across all six neighbours regardless of iteration order.
 export function drawBiomeBlob(
   ctx: Ctx,
   cx: number,
@@ -224,10 +228,10 @@ export function drawBiomeBlob(
   size: number,
   biome: BiomeDef,
 ) {
-  const blob = ctx.createRadialGradient(cx, cy, size * 0.3, cx, cy, size * 1.25);
-  blob.addColorStop(0, biome.fill);
-  blob.addColorStop(0.55, biome.fill);
-  blob.addColorStop(0.85, biome.fill + "b0");
+  const blob = ctx.createRadialGradient(cx, cy, size * 0.55, cx, cy, size * 1.25);
+  blob.addColorStop(0, biome.fill + "00");
+  blob.addColorStop(0.45, biome.fill + "00");
+  blob.addColorStop(0.7, biome.fill + "70");
   blob.addColorStop(1, biome.fill + "00");
   ctx.fillStyle = blob;
   ctx.fillRect(cx - size * 1.3, cy - size * 1.3, size * 2.6, size * 2.6);
