@@ -1,32 +1,39 @@
 # 07_handoff.md
 
-## Что было сделано (последняя сессия, 2026-05-06 v0.9.2)
-- Удалены «призрачные» дубликаты иконок (`drawIconEnhanced` lighter-pass).
-- **11 новых уникальных IconKind**: `megacity`, `trader-post`, `diner`, `factory`, `slum`, `cave`, `quarry`, `vault-sealed`, `vault-open`, `bos-outpost`, `enclave`. Каждая с собственной геометрией (небоскрёбы, фургон, неон-вывеска, заводские трубы, лачуги, сталактиты, ступени карьера, цепной замок, сияющее отверстие, мачта с тарелкой, гексагональная база с E).
-- Соответствующие тайлы в `fallout.ts` переключены на новые иконки + iconColor пересмотрен.
-- `dense-forest` / `dense-deadwood`: count 14→18, scale 0.65→0.55, spread 1.05→1.55, ySpread 0.95→1.30 — теперь действительно густой лес почти на весь гекс.
+## Что было сделано (последняя сессия, 2026-05-07 v1.0.0)
+- **Per-cell sprite cache** для биом-слоя:
+  - Новый модуль `src/render/biomeSprite.ts` — `Map<key, HTMLCanvasElement>` с LRU 5000.
+  - Каждая клетка с биомом: displaced clip + texture (3 stipple слоя + decoration) + glow + lighting запекается в offscreen canvas размером `2 × hexSize * 1.3` в локальных координатах.
+  - Cache key: `(biomeId, q, r, neighborMask, hexSize)` — пересборка sprite'а происходит только при смене содержимого, при панорамировании/зуме/покраске других ячеек никаких пересчётов.
+  - В drawScene passes 2-4 (texture/glow/lighting) свёрнуты в `drawImage(sprite)`. Blob и tile-слой остаются runtime.
+  - Кэш чистится при смене hexSize.
+- Git: проект инициализирован, залит в **https://github.com/Syntiset/hex-mapmaker** (private). Tracking `main → origin/main`.
+- Локальный бэкап `backup/src-v0.9.2-pre-perf/` — 24 файла. Откатная страховка перед оптимизацией. Исключён из git.
+- В `CLAUDE.md` добавлена секция Git/Repo с правилами.
 
 ## На чём остановились
-- Сборка зелёная. Ждём визуальной обратной связи от user'а на новые иконки и плотный лес.
+- Сборка зелёная. Ждём подтверждения от user'а на тесте: 30+ ячеек должны рисоваться без лагов, при панорамировании FPS ≥ 55.
 
 ## Что проверить следующим шагом
-1. `npm run dev` — пройтись по тайлам в палитре, проверить что больше нет дублей-копий (vault/vault-sealed/vault-open, bunker/bos-outpost/enclave-base, mine/cave/quarry, settlement/megacity/trader-post, gas/diner, tower/factory).
-2. Густой лес действительно покрывает гекс на всю площадь — деревья по краям, не только в центре.
-3. Closeup иконок — нет «призраков»/двойных контуров.
-4. Save/load — формат JSON v3 не сломан, новые тайлы корректно сохраняются.
+1. `npm run dev` — нарисовать карту 30+ заполненных гексов разными биомами, потаскать пан → плавно?
+2. Покраска drag-кистью по новым ячейкам → лагов нет?
+3. Save → reload → нарисовать новые → результат идентичен (sprite cache детерминистичен через hash3 → не должен ломать визуал).
+4. `clearBiomeSpriteCache()` срабатывает при изменении grid.hexSize — проверить через создание новой карты с другим размером.
+5. Memory: окно DevTools → Performance, посмотреть рост памяти при долгом панорамировании. Cache LRU 5000 × ~50KB sprite ≈ 250MB max. Должен оставаться в норме.
 
 ## Возможные доработки (backlog)
-- Уникальные иконки для оставшихся feature-тайлов: `mutated-flora` использует `tree`, `fungal-bloom` — `swamp`. Если user заметит — переделать.
-- Биом-aware tint для иконок (тайл на холодном биоме чуть синее, на тёплом — чуть теплее).
-- Группировка тайлов в палитре по категориям (Поселения / Подземелья / Растительность / Опасности / Радиация / Убежища) с заголовками-секциями. Сейчас 35 тайлов в одном плоском гриде.
+- Если потребуется ещё больше производительности:
+  - **Path2D для displaced полигонов** — `ctx.clip(path2D)` быстрее, чем перестроение пути каждый раз. Сейчас path в sprite строится только раз при сборке, так что эффект ограничен.
+  - **Reduce stipple layers** с 3 до 2 — каждый слой меньше → быстрее сборка sprite (но не runtime; sprite один раз собирается).
+  - **Tile sprite cache** — аналог для tile-слоя, если иконки/decoration станут узким местом.
+- Уникальные иконки для оставшихся feature-тайлов: `mutated-flora` (`tree`), `fungal-bloom` (`swamp`).
+- Группировка тайлов в палитре по категориям (Поселения / Подземелья / Растительность / Опасности / Радиация / Убежища).
 - Поиск/фильтрация в палитре.
-- Расширение списка биомов и тайлов (если запросит user).
+- Биом-aware tint для иконок.
 
 ## Полезные файлы
-- `src/render/drawHex.ts` — `drawIcon` switch с 35+ case'ами; helper для деревьев параметризован count/scale/spread/colors.
-- `src/tiles/types.ts` — `IconKind` (40+ значений), `BiomeDef`, `TileDef`.
-- `src/tiles/fallout.ts` — 14 биомов + 35 тайлов с iconColor/glow/decoration.
-- `src/components/HexGridCanvas.tsx` — multi-pass drawScene (биомы → тайлы).
-- `src/components/Toolbar.tsx` — mode toggle (без биом-dropdown'а).
-- `src/components/TilePalette.tsx` — палитра биомов и тайлов в 4 колонки.
-- `src/styles.css` — `.main` 360px, `.palette-grid` 4 колонки.
+- `src/render/biomeSprite.ts` — кэш и `getBiomeSprite()`, `clearBiomeSpriteCache()`.
+- `src/render/displaced.ts` — wavy hex polygon (используется только при build sprite'а).
+- `src/render/drawHex.ts` — primitives: `drawBiomeBlob`, `drawHexTexture`, `drawHexGlow`, `drawHexLighting`, `drawIconEnhanced`, `drawIcon` (35+ icon кейсов).
+- `src/components/HexGridCanvas.tsx` — drawScene с blob runtime + sprite drawImage.
+- `CLAUDE.md` — правила проекта (включая git secition).

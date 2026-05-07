@@ -6,6 +6,13 @@
 
 Web-редактор гексагональных карт для GURPS. Стиль по умолчанию — Fallout (пустоши, руины, радиация). Стек: **Vite + React + TypeScript + react-konva + zustand**. Сохранение карт — JSON, экспорт — PNG. Пользователь не программист.
 
+## Git / Repo
+
+- Репозиторий: `https://github.com/Syntiset/hex-mapmaker` (private).
+- Ветка по умолчанию: `main`. Tracking настроен.
+- Коммитить осмысленные единицы работы (фича, фикс, рефакторинг). Сообщения коммитов на русском, с подписью `Co-Authored-By: Claude Opus 4.7 <noreply@anthropic.com>`.
+- Локальные бэкапы (`backup/`) исключены из git через `.gitignore` — это «откатная страховка», а не история.
+
 ## Команды
 
 - Установка: `npm install`

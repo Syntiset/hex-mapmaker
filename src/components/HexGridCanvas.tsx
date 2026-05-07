@@ -15,7 +15,6 @@ import { useMapStore } from "../store/mapStore";
 import {
   drawBiomeBlob,
   drawHexGlow,
-  drawHexLighting,
   drawHexStroke,
   drawHexTexture,
   drawIconEnhanced,
@@ -25,8 +24,8 @@ import {
 import {
   EDGE_TO_NEIGHBOR_OFFSET,
   clearDisplacedCache,
-  withDisplacedHexClip,
 } from "../render/displaced";
+import { clearBiomeSpriteCache, getBiomeSprite } from "../render/biomeSprite";
 
 interface PixelPt { x: number; y: number }
 
@@ -83,9 +82,10 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
     setPos({ x: hw, y: hh });
   }, [hw, hh, grid.cols, grid.rows]);
 
-  // Invalidate displaced-polygon cache when world hexSize changes.
+  // Invalidate displaced-polygon and sprite caches when world hexSize changes.
   useEffect(() => {
     clearDisplacedCache();
+    clearBiomeSpriteCache();
   }, [grid.hexSize]);
 
   // Compute viewport in world coords, with margin equal to one hex.
@@ -334,33 +334,20 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
     // ── BIOME LAYER ──
     // Pass 1 — soft radial blob with biome's base color (no clip).
     // Adjacent biome blobs overlap and blend optically along their seam.
+    // Blobs MUST stay runtime-rendered: they overlap into neighbours, so
+    // they cannot be baked into per-cell sprites.
     for (const b of biomed) {
       if (!b.biome) continue;
       drawBiomeBlob(raw, b.cx, b.cy, grid.hexSize, b.biome);
     }
 
-    // Pass 2 — biome textures (stipple + decoration) inside displaced wavy clip.
+    // Pass 2 — composite cached per-cell sprite (texture + glow + lighting).
+    // Each sprite is built once per (biomeId, q, r, mask, hexSize) and reused
+    // across frames. Replaces ~100 canvas operations per cell with one drawImage.
     for (const b of biomed) {
       if (!b.biome) continue;
-      withDisplacedHexClip(raw, b.q, b.r, b.cx, b.cy, grid.hexSize, b.mask, () => {
-        if (b.biome) drawHexTexture(raw, b.q, b.r, b.cx, b.cy, grid.hexSize, b.biome);
-      });
-    }
-
-    // Pass 3 — ambient biome glow (no clip).
-    for (const b of biomed) {
-      if (!b.biome) continue;
-      drawHexGlow(raw, b.cx, b.cy, grid.hexSize, b.biome);
-    }
-
-    // Pass 4 — depth lighting in clean hex clip.
-    for (const b of biomed) {
-      raw.save();
-      raw.beginPath();
-      pathHex(raw, b.cx, b.cy, grid.hexSize);
-      raw.clip();
-      drawHexLighting(raw, b.cx, b.cy, grid.hexSize);
-      raw.restore();
+      const sprite = getBiomeSprite(b.biome, b.q, b.r, grid.hexSize, b.mask);
+      raw.drawImage(sprite.canvas, b.cx - sprite.half, b.cy - sprite.half);
     }
 
     // ── TILE LAYER (features on top of biome) ──

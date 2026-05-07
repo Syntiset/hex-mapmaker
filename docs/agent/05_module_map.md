@@ -22,7 +22,8 @@
 
 ### `src/render/`
 - `noise.ts` — `valueNoise2D`, `fbm2`, `noiseVec` (2D vector field), `hash2`/`hash3`, `rand`. Детерминированный шум в мировых координатах.
-- `displaced.ts` — wavy hex polygon: `displacedHexPolygon`, `getDisplacedPoly` (LRU-кэш 5000), `pathDisplacedHex`, `withDisplacedHexClip`, `clearDisplacedCache`.
+- `displaced.ts` — wavy hex polygon: `displacedHexPolygonForCell`, `getDisplacedPoly` (LRU-кэш 5000), `pathDisplacedHex`, `withDisplacedHexClip`, `clearDisplacedCache`.
+- `biomeSprite.ts` — per-cell sprite cache: `getBiomeSprite()` запекает displaced texture+glow+lighting в offscreen canvas; `clearBiomeSpriteCache()` инвалидация. LRU 5000.
 - `drawHex.ts` — нативные canvas-функции:
   - Базовые: `pathHex`, `drawHexFill` (legacy, для совместимости), `drawHexStroke`.
   - Rich: `drawHexFillRich` (multi-stipple + decoration + glow + vignette + highlight), `drawDecoration` (pebbles/cracks/specks/tufts/ripples).

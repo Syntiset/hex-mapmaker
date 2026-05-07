@@ -1,5 +1,15 @@
 # 04_changelog.md
 
+## 2026-05-07 — v1.0.0 — Per-cell sprite cache
+- **Производительность:** при 30+ заполненных гексах FPS на вкладке падал. Корень — каждый кадр на каждый biomed гекс выполнялось ~100 canvas-операций (60-точечный displaced clip + 86 stipple arc-заливок + decoration + 2 градиента + clean clip + 2 градиента lighting). Для 30 ячеек это ~3000 операций per frame. Пересчитывалось при каждом панорамировании / зуме / покраске.
+- Добавлен модуль `src/render/biomeSprite.ts` с per-cell sprite cache:
+  - Каждая клетка с биомом запекается в offscreen `HTMLCanvasElement` размером `2 × hexSize * 1.3` с `(displaced clip + texture + glow + lighting)` в локальных координатах.
+  - Кэш ключ: `(biomeId, q, r, neighborMask, hexSize)`. LRU 5000 записей.
+  - В `drawScene` passes 2-4 (texture/glow/lighting) свёрнуты в один `ctx.drawImage(sprite, ...)`. Blob-проход остался runtime — он перетекает в соседей и не может быть запечён в локальный sprite.
+- Кэш инвалидируется одновременно с displaced cache (при смене integer-size). При покраске соседнего гекса меняется `neighborMask` — старый sprite становится stale, новый ключ → cache miss → пересборка только пострадавших ячеек.
+- Ожидаемый эффект: с 30 ячейками per-frame работа уменьшается с ~100×30 = 3000 до ~30 drawImage'ей плюс runtime blobs/иконок/дорог. Карты с сотнями гексов должны работать без лагов.
+- Git: проект инициализирован как репозиторий, залит в `https://github.com/Syntiset/hex-mapmaker` (private).
+
 ## 2026-05-06 (поздний вечер) — v0.9.2
 - Добавлено: **11 уникальных иконок** для тайлов, которые раньше переиспользовали базовые иконки и различались лишь цветом:
   - `megacity` — кластер небоскрёбов с окнами (вместо settlement-houses)
