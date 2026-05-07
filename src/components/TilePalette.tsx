@@ -91,6 +91,13 @@ export function TilePalette() {
   const hoverBiome = hover?.kind === "biome" ? biomes.find((b) => b.id === hover.id) : undefined;
   const hoverTile = hover?.kind === "tile" ? tileById.get(hover.id) : undefined;
 
+  // Don't auto-switch tool when picking from palette — preserves erase, road, etc.
+  // Only nudge to paint if current tool isn't a paint-related one already.
+  function ensurePaintCompatibleTool() {
+    const cur = useMapStore.getState().tool;
+    if (cur !== "paint" && cur !== "erase") setTool("paint");
+  }
+
   return (
     <div className="palette">
       <h3>Биомы</h3>
@@ -102,7 +109,7 @@ export function TilePalette() {
             onClick={() => {
               setActiveBiome(b.id);
               setPaintMode("biome");
-              setTool("paint");
+              ensurePaintCompatibleTool();
             }}
             onMouseEnter={(e) => setHover({ kind: "biome", id: b.id, x: e.clientX, y: e.clientY })}
             onMouseMove={(e) => setHover((h) => (h && h.id === b.id ? { ...h, x: e.clientX, y: e.clientY } : h))}
@@ -132,23 +139,22 @@ export function TilePalette() {
           >{c.name}</button>
         ))}
       </div>
-      <div className="palette-grid">
+      <div className="tile-list">
         {visibleTiles.map((t) => (
           <button
             key={t.id}
-            className={paintMode === "tile" && activeId === t.id ? "tile-btn active" : "tile-btn"}
+            className={paintMode === "tile" && activeId === t.id ? "tile-row active" : "tile-row"}
             onClick={() => {
               setActive(t.id);
               setPaintMode("tile");
-              setTool("paint");
+              ensurePaintCompatibleTool();
             }}
             onMouseEnter={(e) => setHover({ kind: "tile", id: t.id, x: e.clientX, y: e.clientY })}
             onMouseMove={(e) => setHover((h) => (h && h.id === t.id ? { ...h, x: e.clientX, y: e.clientY } : h))}
             onMouseLeave={() => setHover((h) => (h && h.id === t.id ? null : h))}
             title={t.name}
           >
-            <TilePreview tile={t} biome={activeBiome} />
-            <span>{t.name}</span>
+            {t.name}
           </button>
         ))}
       </div>

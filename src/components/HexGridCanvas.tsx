@@ -30,10 +30,11 @@ interface Props {
   onHover: (key: string | null) => void;
   viewState: ViewState;
   setViewState: (v: ViewState | ((prev: ViewState) => ViewState)) => void;
+  panOverride?: boolean;
 }
 
 export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanvas(
-  { width, height, onHover, viewState, setViewState },
+  { width, height, onHover, viewState, setViewState, panOverride = false },
   ref,
 ) {
   const scale = viewState.scale;
@@ -49,7 +50,8 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
   const roadPaths = useMapStore((s) => s.roadPaths);
   const draftPoints = useMapStore((s) => s.draftPoints);
   const activeRoadId = useMapStore((s) => s.activeRoadId);
-  const tool = useMapStore((s) => s.tool);
+  const storeTool = useMapStore((s) => s.tool);
+  const tool = panOverride ? "pan" : storeTool;
   const showGrid = useMapStore((s) => s.showGrid);
   const freeHandRoad = useMapStore((s) => s.freeHandRoad);
   const paint = useMapStore((s) => s.paint);

@@ -169,6 +169,25 @@ button:hover { background: #3a3a26; color: var(--accent); }
   border-color: var(--accent-2);
 }
 .tile-btn { position: relative; }
+.tile-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.tile-row {
+  text-align: left;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: #1a1a12;
+  border: 1px solid var(--border);
+}
+.tile-row:hover { background: #2a2a1c; color: var(--accent); }
+.tile-row.active {
+  background: #2c2c1c;
+  color: var(--accent-2);
+  border-color: var(--accent-2);
+  box-shadow: 0 0 0 1px var(--accent-2) inset;
+}
 .hover-preview {
   position: fixed;
   z-index: 100;

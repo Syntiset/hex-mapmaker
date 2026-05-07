@@ -51,9 +51,7 @@ export default function App() {
   const redo = useMapStore((s) => s.redo);
   const setTool = useMapStore((s) => s.setTool);
   const setPaintMode = useMapStore((s) => s.setPaintMode);
-  const setActiveBiome = useMapStore((s) => s.setActiveBiome);
-  const setActiveTile = useMapStore((s) => s.setActiveTile);
-  const prevToolRef = useRef<string | null>(null);
+  const [spacePan, setSpacePan] = useState(false);
 
   useEffect(() => {
     function update() {
@@ -83,35 +81,18 @@ export default function App() {
         return;
       }
 
-      // Space (hold) → pan; restore previous tool on release.
-      if (e.code === "Space" && !e.repeat) {
+      // Space (hold) → pan override; do NOT change stored tool — release returns
+      // user to whatever they were doing without store mutations.
+      if (e.code === "Space") {
+        if (!e.repeat) setSpacePan(true);
         e.preventDefault();
-        const cur = useMapStore.getState().tool;
-        if (cur !== "pan") {
-          prevToolRef.current = cur;
-          setTool("pan");
-        }
-        return;
-      }
-
-      // Digit 1-9 — pick palette item by index in current paint mode.
-      if (/^[1-9]$/.test(e.key)) {
-        const idx = parseInt(e.key, 10) - 1;
-        const st = useMapStore.getState();
-        if (st.paintMode === "biome") {
-          const b = st.biomes[idx];
-          if (b) { setActiveBiome(b.id); setTool("paint"); }
-        } else {
-          const t = st.tiles[idx];
-          if (t) { setActiveTile(t.id); setTool("paint"); }
-        }
         return;
       }
 
       const k = e.key.toLowerCase();
       switch (k) {
-        case "b": setPaintMode("biome"); setTool("paint"); break;
-        case "t": setPaintMode("tile");  setTool("paint"); break;
+        case "b": setPaintMode("biome"); break;  // mode only, keep current tool
+        case "t": setPaintMode("tile");  break;
         case "r": setTool("road"); break;
         case "e": setTool("erase"); break;
         case "l": setTool("label"); break;
@@ -122,21 +103,21 @@ export default function App() {
     function onKeyUp(e: KeyboardEvent) {
       if (e.code === "Space") {
         e.preventDefault();
-        const prev = prevToolRef.current;
-        if (prev) {
-          setTool(prev as ReturnType<typeof useMapStore.getState>["tool"]);
-          prevToolRef.current = null;
-        }
+        setSpacePan(false);
       }
     }
 
+    function onBlur() { setSpacePan(false); }
+
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("blur", onBlur);
     return () => {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("blur", onBlur);
     };
-  }, [undo, redo, setTool, setPaintMode, setActiveBiome, setActiveTile]);
+  }, [undo, redo, setTool, setPaintMode]);
 
   return (
     <div className="app">
@@ -154,6 +135,7 @@ export default function App() {
             onHover={setHoverKey}
             viewState={view}
             setViewState={setView}
+            panOverride={spacePan}
           />
           <div className="zoom-overlay">
             <button title="100%" onClick={() => setZoom(1)}>1×</button>
