@@ -17,7 +17,7 @@ export function StatusBar({ hoverKey }: Props) {
       <span>Гекс: {hoverKey ?? "—"}</span>
       <span>Тайл: {tile?.name ?? "пусто"}</span>
       {cell?.label && <span>Подпись: «{cell.label}»</span>}
-      <span className="hint">ЛКМ — рисовать · ПКМ/средняя — двигать · колесо — зум · Ctrl+Z/Y — отмена/повтор</span>
+      <span className="hint">B/T режим · R дорога · E ластик · L подпись · Space-hold pan · Ctrl+Z/Y · «? Помощь» — полный список</span>
     </div>
   );
 }

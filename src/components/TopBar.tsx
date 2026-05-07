@@ -5,6 +5,7 @@ import { saveJson } from "../io/saveJson";
 import { loadJsonFile } from "../io/loadJson";
 import { exportStagePng } from "../io/exportPng";
 import { listRecents, pushRecent, type RecentEntry } from "../io/recents";
+import { HelpModal } from "./HelpModal";
 
 interface Props {
   stageRef: React.RefObject<Konva.Stage | null>;
@@ -31,6 +32,7 @@ export function TopBar({ stageRef }: Props) {
   const [rows, setRows] = useState(grid.rows);
   const [recents, setRecents] = useState<RecentEntry[]>([]);
   const [recentOpen, setRecentOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const recentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -135,6 +137,10 @@ export function TopBar({ stageRef }: Props) {
         <button onClick={undo} title="Ctrl+Z">↶ Отмена</button>
         <button onClick={redo} title="Ctrl+Y">↷ Повтор</button>
       </div>
+      <div className="group">
+        <button onClick={() => setHelpOpen(true)} title="Управление и горячие клавиши">? Помощь</button>
+      </div>
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }

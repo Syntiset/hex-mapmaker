@@ -1,5 +1,13 @@
 # 04_changelog.md
 
+## 2026-05-07 — v1.4.0 — Help-модалка + long-press preview на тач
+
+- **HelpModal (`src/components/HelpModal.tsx`):** новый компонент с двумя табами «🖥 ПК / мышь» и «📱 Тач / планшет». Дефолтный таб — по `window.matchMedia("(pointer: coarse)")` (тач-устройства открывают сразу свою секцию). Закрытие — Esc / клик по backdrop / крестик.
+- **TopBar:** добавлена кнопка «? Помощь» открывающая модалку.
+- **StatusBar hint** переписан: вместо мышиной шпаргалки указывает на B/T/R/E/L/Space/Ctrl-Z/Y и кнопку Помощь.
+- **Long-press preview (тач):** в `TilePalette` добавлен таймер 450мс на `pointerdown` для биомов и тайлов (только если `pointerType !== "mouse"`). По истечении — popup-превью. Движение пальца > 10px → отмена. Клик подавляется через `suppressClick` ref, чтобы long-press не выбирал элемент. Тап вне `.hover-preview` закрывает превью (window pointerdown listener активен только пока висит touch-preview). Hover-listener'ы для мыши не дёргают touch-preview (проверка `h.fromTouch`).
+- **CSS:** `.modal*`, `.help-row`, `.help-note`, `kbd`-стили.
+
 ## 2026-05-07 — v1.3.2 — Toolbar mode-buttons + tach pinch revert
 
 - **Toolbar:** кнопки «Биом / Тайл» в `Toolbar.tsx` тоже форсили `setTool("paint")` (пропущены в v1.3.1). Заменены на тот же conditional что в палитре: переключают только `paintMode`, инструмент трогают только если он не paint и не erase.
