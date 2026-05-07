@@ -1,39 +1,47 @@
 # 07_handoff.md
 
-## Что было сделано (последняя сессия, 2026-05-07 v1.0.0)
-- **Per-cell sprite cache** для биом-слоя:
-  - Новый модуль `src/render/biomeSprite.ts` — `Map<key, HTMLCanvasElement>` с LRU 5000.
-  - Каждая клетка с биомом: displaced clip + texture (3 stipple слоя + decoration) + glow + lighting запекается в offscreen canvas размером `2 × hexSize * 1.3` в локальных координатах.
-  - Cache key: `(biomeId, q, r, neighborMask, hexSize)` — пересборка sprite'а происходит только при смене содержимого, при панорамировании/зуме/покраске других ячеек никаких пересчётов.
-  - В drawScene passes 2-4 (texture/glow/lighting) свёрнуты в `drawImage(sprite)`. Blob и tile-слой остаются runtime.
-  - Кэш чистится при смене hexSize.
-- Git: проект инициализирован, залит в **https://github.com/Syntiset/hex-mapmaker** (private). Tracking `main → origin/main`.
-- Локальный бэкап `backup/src-v0.9.2-pre-perf/` — 24 файла. Откатная страховка перед оптимизацией. Исключён из git.
-- В `CLAUDE.md` добавлена секция Git/Repo с правилами.
+## Что было сделано (последняя сессия, 2026-05-07 v1.1.0)
+
+**Wavy/displaced функционал удалён целиком.**
+
+После v1.0.0 (per-cell sprite cache) пошла серия итераций (v1.0.6–v1.0.15) пытаясь починить визуальные артефакты на стыках биомов: «обрезанные» точки, «отъедание» одного биома другим, светлые полосы вдоль швов. Каждая фикса перемещала проблему в другое место. Корень был в **двунаправленной wavy-границе** (vector noise) + sample-vs-clip mismatch (см. ISSUE-003 в `06_known_issues.md` для подробного разбора).
+
+После force-push отката до v1.0.5 (`ab1ad98`) и нескольких попыток фикса (sample-в-полигоне, inward-only wavy) пришли к выводу: wavy не оправдывает сложности. **Удалён модуль целиком.**
+
+Что удалено:
+- `src/render/displaced.ts` — модуль удалён физически
+- `pointInPolygon`, `sampleInWavyPolygon`, `sampleInSafeHex`, `sampleArea` в `drawHex.ts`
+- `EDGE_TO_NEIGHBOR_OFFSET` / `clearDisplacedCache` импорты
+- `neighborMask` вычисление в `drawScene`
+- `mask` поле в sprite cache key
+
+Что вернулось/упрощено:
+- Чистые шестиугольные рёбра гексов
+- Soft blob blending: runtime `drawBiomeBlob` (radial gradient до 1.25*size с alpha falloff) перетекает в соседей
+- Stipple/decoration — простой rectangular sampling
+- Sprite cache: `(biomeId, q, r, hexSize)`
 
 ## На чём остановились
-- Сборка зелёная. Ждём подтверждения от user'а на тесте: 30+ ячеек должны рисоваться без лагов, при панорамировании FPS ≥ 55.
+- v1.1.0 коммит, push на `origin/main`, бэкап локально перед чисткой
+- Сборка зелёная, ждём подтверждения визуала на тесте
 
 ## Что проверить следующим шагом
-1. `npm run dev` — нарисовать карту 30+ заполненных гексов разными биомами, потаскать пан → плавно?
-2. Покраска drag-кистью по новым ячейкам → лагов нет?
-3. Save → reload → нарисовать новые → результат идентичен (sprite cache детерминистичен через hash3 → не должен ломать визуал).
-4. `clearBiomeSpriteCache()` срабатывает при изменении grid.hexSize — проверить через создание новой карты с другим размером.
-5. Memory: окно DevTools → Performance, посмотреть рост памяти при долгом панорамировании. Cache LRU 5000 × ~50KB sprite ≈ 250MB max. Должен оставаться в норме.
+1. `npm run dev` — нарисовать карту со смесью биомов, убедиться: рёбра ровные шестиугольные, цвета соседей мягко перетекают через blob alpha falloff
+2. Производительность: `~50×50` карта, pan/zoom — без лагов (sprite cache работает)
+3. Save/load JSON v3 — round-trip чистый
+4. Палитровые превью (биомы и тайлы в сайдбаре) — без артефактов
 
-## Возможные доработки (backlog)
-- Если потребуется ещё больше производительности:
-  - **Path2D для displaced полигонов** — `ctx.clip(path2D)` быстрее, чем перестроение пути каждый раз. Сейчас path в sprite строится только раз при сборке, так что эффект ограничен.
-  - **Reduce stipple layers** с 3 до 2 — каждый слой меньше → быстрее сборка sprite (но не runtime; sprite один раз собирается).
-  - **Tile sprite cache** — аналог для tile-слоя, если иконки/decoration станут узким местом.
-- Уникальные иконки для оставшихся feature-тайлов: `mutated-flora` (`tree`), `fungal-bloom` (`swamp`).
-- Группировка тайлов в палитре по категориям (Поселения / Подземелья / Растительность / Опасности / Радиация / Убежища).
-- Поиск/фильтрация в палитре.
-- Биом-aware tint для иконок.
+## Backlog (что можно делать дальше)
+- Расширение функционала: тонкие настройки blob radius / alpha (в `drawBiomeBlob` хардкод сейчас)
+- Реальные художественные тайлы (PNG-ассеты вместо процедурных) — отдельная итерация
+- Слои / Fog of War для показа игрокам
+- Кисть размером > 1
+- Импорт фоновой картинки и наложение прозрачной hex-сетки сверху
 
 ## Полезные файлы
-- `src/render/biomeSprite.ts` — кэш и `getBiomeSprite()`, `clearBiomeSpriteCache()`.
-- `src/render/displaced.ts` — wavy hex polygon (используется только при build sprite'а).
-- `src/render/drawHex.ts` — primitives: `drawBiomeBlob`, `drawHexTexture`, `drawHexGlow`, `drawHexLighting`, `drawIconEnhanced`, `drawIcon` (35+ icon кейсов).
-- `src/components/HexGridCanvas.tsx` — drawScene с blob runtime + sprite drawImage.
-- `CLAUDE.md` — правила проекта (включая git secition).
+- `src/render/drawHex.ts` — все рендер-функции, decoration switch
+- `src/render/biomeSprite.ts` — sprite cache, чистая архитектура без wavy
+- `src/render/noise.ts` — низкоуровневый шум (используется для hash в stipple)
+- `src/components/HexGridCanvas.tsx` — drawScene, biomes/tiles разделены
+- `src/tiles/fallout.ts` — палитра 14 биомов + 35 тайлов
+- `docs/agent/06_known_issues.md` — ISSUE-003 разбор wavy-сериала (для будущей справки если когда-то снова захочется)

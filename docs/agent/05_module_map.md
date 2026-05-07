@@ -22,12 +22,12 @@
 
 ### `src/render/`
 - `noise.ts` — `valueNoise2D`, `fbm2`, `noiseVec` (2D vector field), `hash2`/`hash3`, `rand`. Детерминированный шум в мировых координатах.
-- `displaced.ts` — wavy hex polygon: `displacedHexPolygonForCell`, `getDisplacedPoly` (LRU-кэш 5000), `pathDisplacedHex`, `withDisplacedHexClip`, `clearDisplacedCache`.
-- `biomeSprite.ts` — per-cell sprite cache: `getBiomeSprite()` запекает displaced texture+glow+lighting в offscreen canvas; `clearBiomeSpriteCache()` инвалидация. LRU 5000.
+- `biomeSprite.ts` — per-cell sprite cache: `getBiomeSprite(biome, q, r, size)` запекает texture+glow+lighting в offscreen canvas (clean hex clip); `clearBiomeSpriteCache()` инвалидация. LRU 2000.
 - `drawHex.ts` — нативные canvas-функции:
-  - Базовые: `pathHex`, `drawHexFill` (legacy, для совместимости), `drawHexStroke`.
-  - Rich: `drawHexFillRich` (multi-stipple + decoration + glow + vignette + highlight), `drawDecoration` (pebbles/cracks/specks/tufts/ripples).
-  - Иконки: `drawIcon` (24 типа), `drawIconEnhanced` (shadow + highlight wrap).
+  - Базовые: `pathHex`, `drawHexStroke`.
+  - Rich: `drawBiomeBlob` (radial gradient runtime для soft blending), `drawHexTexture` (stipple + decoration), `drawHexGlow`, `drawHexLighting`, `drawBiomeRich` (всё вместе для палитровых превью).
+  - Decoration: `drawDecoration` (pebbles/cracks/specks/tufts/ripples), simple rectangular sampling.
+  - Иконки: `drawIcon` (40+ типов), `drawIconEnhanced` (shadow wrap).
   - Дороги: `drawRoadPaths` (Chaikin smoothing).
 
 ### `src/components/`

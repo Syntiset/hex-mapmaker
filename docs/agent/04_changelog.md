@@ -1,5 +1,13 @@
 # 04_changelog.md
 
+## 2026-05-07 — v1.1.0 — Wavy/displaced функционал удалён
+- **Удалён wavy-clip / displaced polygon целиком.** Включая `src/render/displaced.ts` (модуль удалён физически), `pointInPolygon`, `sampleInWavyPolygon`, `sampleArea`, всё safe-hex sampling, neighborMask вычисление в drawScene. Wavy создавал двунаправленную асимметрию границ → биомы выглядели «отъедающими» друг друга, что породило целую серию итераций v1.0.6–v1.0.15 (откачены через force push до v1.0.5). Подробный разбор причин — ISSUE-003 в `06_known_issues.md`.
+- **Возвращены чистые шестиугольные рёбра** + soft blob blending. Runtime `drawBiomeBlob` рисует radial gradient с alpha falloff на радиусе 1.25*size — этот «хвост» blob'а перекрывается с blob'ами соседей, давая мягкие цветовые переходы оптически (без сложного геометрического клипа).
+- **Sprite cache упрощён**: ключ `(biomeId, q, r, hexSize)` без `mask`. Каждая ячейка имеет уникальный stipple-pattern за счёт (q, r) hash, при изменении соседа sprite не пересобирается.
+- **Stipple/decoration возвращены к простому rectangular sampling** в bbox вокруг центра гекса. Canvas clean-hex clip обрезает естественно.
+- **Бекап локальной копии** перед чисткой: `backup/src-20260507-095821-pre-soft-disable/` (исключён из git).
+- **Документация:** ISSUE-003 в `06_known_issues.md` сохранён как урок (причины, эволюция фикса, финальное решение — отказ от wavy).
+
 ## 2026-05-07 — v1.0.0 — Per-cell sprite cache
 - **Производительность:** при 30+ заполненных гексах FPS на вкладке падал. Корень — каждый кадр на каждый biomed гекс выполнялось ~100 canvas-операций (60-точечный displaced clip + 86 stipple arc-заливок + decoration + 2 градиента + clean clip + 2 градиента lighting). Для 30 ячеек это ~3000 операций per frame. Пересчитывалось при каждом панорамировании / зуме / покраске.
 - Добавлен модуль `src/render/biomeSprite.ts` с per-cell sprite cache:

@@ -2,7 +2,6 @@ import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { Stage, Layer, Shape, Text, Group, Rect } from "react-konva";
 import type Konva from "konva";
 import {
-  NEIGHBOR_OFFSETS,
   axialKey,
   axialToPixel,
   coordInBounds,
@@ -21,10 +20,6 @@ import {
   drawRoadPaths,
   pathHex,
 } from "../render/drawHex";
-import {
-  EDGE_TO_NEIGHBOR_OFFSET,
-  clearDisplacedCache,
-} from "../render/displaced";
 import { clearBiomeSpriteCache, getBiomeSprite } from "../render/biomeSprite";
 
 interface PixelPt { x: number; y: number }
@@ -82,9 +77,8 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
     setPos({ x: hw, y: hh });
   }, [hw, hh, grid.cols, grid.rows]);
 
-  // Invalidate displaced-polygon and sprite caches when world hexSize changes.
+  // Invalidate sprite cache when world hexSize changes.
   useEffect(() => {
-    clearDisplacedCache();
     clearBiomeSpriteCache();
   }, [grid.hexSize]);
 
@@ -304,8 +298,7 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
     raw.fill();
 
     // Collect cells with biomes (terrain layer) and cells with tiles (features).
-    // Both layers are rendered in passes; a cell can have one, the other, or both.
-    const biomed: { q: number; r: number; cx: number; cy: number; biome: ReturnType<typeof biomeById.get>; mask: number }[] = [];
+    const biomed: { q: number; r: number; cx: number; cy: number; biome: ReturnType<typeof biomeById.get> }[] = [];
     const tiled: { q: number; r: number; cx: number; cy: number; tile: ReturnType<typeof tileById.get> }[] = [];
 
     for (const { q, r, cx, cy } of visibleCoords) {
@@ -313,17 +306,7 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
       if (!cell) continue;
       if (cell.biomeId) {
         const biome = biomeById.get(cell.biomeId);
-        if (biome) {
-          // Wavy clip mask: only edges where neighbor also has a biome.
-          let mask = 0;
-          for (let edge = 0; edge < 6; edge++) {
-            const off = NEIGHBOR_OFFSETS[EDGE_TO_NEIGHBOR_OFFSET[edge]];
-            const nq = q + off.q, nr = r + off.r;
-            if (!coordInBounds(nq, nr, grid.cols, grid.rows)) continue;
-            if (cells[axialKey(nq, nr)]?.biomeId) mask |= 1 << edge;
-          }
-          biomed.push({ q, r, cx, cy, biome, mask });
-        }
+        if (biome) biomed.push({ q, r, cx, cy, biome });
       }
       if (cell.tileId) {
         const tile = tileById.get(cell.tileId);
@@ -333,22 +316,21 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
 
     // ── BIOME LAYER ──
     // Pass 1 — soft radial blob with biome's base color (no clip).
-    // Adjacent biome blobs overlap and blend optically along their seam.
-    // Blobs MUST stay runtime-rendered: they overlap into neighbours, so
-    // they cannot be baked into per-cell sprites.
+    // Adjacent biome blobs overlap and their alpha tails blend cooler/warmer
+    // biome colours into a smooth gradient on the seam. Runtime, not baked
+    // into sprites — the blob extends past hex into neighbour territory.
     for (const b of biomed) {
       if (!b.biome) continue;
       drawBiomeBlob(raw, b.cx, b.cy, grid.hexSize, b.biome);
     }
 
     // Pass 2 — composite cached per-cell sprite (texture + glow + lighting).
-    // Each sprite is built once per (biomeId, q, r, mask, hexSize) and reused
-    // across frames. Sprites are baked at SPRITE_SCALE× backing-store resolution
-    // (≥ devicePixelRatio) so they don't blur on HiDPI displays — drawImage
-    // here passes EXPLICIT world-pixel dst size to scale crisply.
+    // Sprite is built once per (biomeId, q, r, hexSize) and reused across
+    // frames. Sprites are baked at SPRITE_SCALE× backing-store resolution so
+    // they stay crisp on HiDPI; drawImage passes explicit world-pixel size.
     for (const b of biomed) {
       if (!b.biome) continue;
-      const sprite = getBiomeSprite(b.biome, b.q, b.r, grid.hexSize, b.mask);
+      const sprite = getBiomeSprite(b.biome, b.q, b.r, grid.hexSize);
       raw.drawImage(
         sprite.canvas,
         b.cx - sprite.half,

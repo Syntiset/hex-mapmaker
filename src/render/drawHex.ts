@@ -79,31 +79,6 @@ function stippleLayer(
   ctx.globalAlpha = 1;
 }
 
-// Safe-hex rejection sampler: returns a point inside a pointy-top hex
-// whose edges are pulled inward by `marginInward` (wavy clip allowance +
-// element-size buffer). Corners stay full because the wavy mask uses
-// sin(πt) and pins corners. This lets decorations populate the corner
-// regions of the hex which a simple inscribed disk leaves empty.
-const SIN60 = Math.sqrt(3) / 2;
-function sampleInSafeHex(
-  seed: number,
-  baseIdx: number,
-  size: number,
-  marginInward: number,
-): { x: number; y: number } {
-  const apothem = SIN60 * size - marginInward;
-  const bboxHalf = size * 0.97;
-  for (let a = 0; a < 24; a++) {
-    const u = (rand(seed, baseIdx * 64 + a * 2) - 0.5) * 2 * bboxHalf;
-    const v = (rand(seed, baseIdx * 64 + a * 2 + 1) - 0.5) * 2 * bboxHalf;
-    if (Math.abs(u) > apothem) continue;
-    if (Math.abs(0.5 * u + SIN60 * v) > apothem) continue;
-    if (Math.abs(-0.5 * u + SIN60 * v) > apothem) continue;
-    return { x: u, y: v };
-  }
-  return { x: 0, y: 0 };
-}
-
 export function drawDecoration(
   ctx: Ctx,
   q: number,
@@ -117,13 +92,17 @@ export function drawDecoration(
   const seed = hash3(q, r, 7);
   ctx.save();
 
+  // All decorations are sampled in a simple rectangular bbox around the hex
+  // centre — the canvas's clean-hex clip (set up by the caller) handles any
+  // overflow at the edges naturally. No wavy / safe-hex math needed.
   switch (dec.kind) {
     case "pebbles": {
       const n = Math.round(6 + dec.density * 8);
       for (let i = 0; i < n; i++) {
-        const p = sampleInSafeHex(seed, i, size, size * 0.22);
-        const px = cx + p.x;
-        const py = cy + p.y;
+        const u = rand(seed, i * 3) - 0.5;
+        const v = rand(seed, i * 3 + 1) - 0.5;
+        const px = cx + u * size * 1.5;
+        const py = cy + v * size * 1.5;
         const rx = size * (0.05 + rand(seed, i * 3 + 2) * 0.05);
         const ry = rx * (0.55 + rand(seed, i * 3 + 50) * 0.3);
         // shadow under
@@ -144,42 +123,24 @@ export function drawDecoration(
       }
       break;
     }
-    // All decoration positions are constrained to a SAFE INSCRIBED CIRCLE
-    // smaller than the hex apothem (≈0.866*size) minus the worst-case wavy
-    // displacement (0.18*size). Safe radius ≈ 0.62*size — guarantees no
-    // shape-decoration ever crosses the displaced clip regardless of mask.
     case "cracks": {
       const n = Math.round(2 + dec.density * 2);
-      const margin = size * 0.20;
-      const apothemSafe = SIN60 * size - margin;
       ctx.strokeStyle = dec.color;
       ctx.lineWidth = Math.max(1, size * 0.025);
       ctx.lineCap = "round";
       for (let i = 0; i < n; i++) {
-        const start = sampleInSafeHex(seed, i + 1000, size, margin);
+        const sx = cx + (rand(seed, i * 5) - 0.5) * size * 1.3;
+        const sy = cy + (rand(seed, i * 5 + 1) - 0.5) * size * 1.3;
         const segs = 3 + Math.floor(rand(seed, i * 5 + 2) * 3);
         ctx.beginPath();
-        let px = start.x, py = start.y;
-        ctx.moveTo(cx + px, cy + py);
+        let px = sx, py = sy;
+        ctx.moveTo(px, py);
         for (let s = 0; s < segs; s++) {
           const angle = rand(seed, i * 5 + 10 + s) * Math.PI * 2;
-          const len = size * (0.06 + rand(seed, i * 5 + 20 + s) * 0.10);
-          let nx = px + Math.cos(angle) * len;
-          let ny = py + Math.sin(angle) * len;
-          // Clamp end-point onto the safe hex shape so the crack never
-          // wanders out of the worst-case wavy clip boundary.
-          const projections = [
-            Math.abs(nx),
-            Math.abs(0.5 * nx + SIN60 * ny),
-            Math.abs(-0.5 * nx + SIN60 * ny),
-          ];
-          const maxP = Math.max(...projections);
-          if (maxP > apothemSafe) {
-            const k = apothemSafe / maxP;
-            nx *= k; ny *= k;
-          }
-          px = nx; py = ny;
-          ctx.lineTo(cx + px, cy + py);
+          const len = size * (0.12 + rand(seed, i * 5 + 20 + s) * 0.18);
+          px += Math.cos(angle) * len;
+          py += Math.sin(angle) * len;
+          ctx.lineTo(px, py);
         }
         ctx.globalAlpha = 0.7;
         ctx.stroke();
@@ -191,11 +152,14 @@ export function drawDecoration(
       const n = Math.round(12 + dec.density * 24);
       ctx.fillStyle = dec.color;
       for (let i = 0; i < n; i++) {
-        const p = sampleInSafeHex(seed, i + 2000, size, size * 0.20);
+        const u = rand(seed, i * 4) - 0.5;
+        const v = rand(seed, i * 4 + 1) - 0.5;
+        const px = cx + u * size * 1.7;
+        const py = cy + v * size * 1.7;
         const rr = size * (0.012 + rand(seed, i * 4 + 2) * 0.022);
         ctx.globalAlpha = 0.55 + rand(seed, i * 4 + 3) * 0.4;
         ctx.beginPath();
-        ctx.arc(cx + p.x, cy + p.y, rr, 0, Math.PI * 2);
+        ctx.arc(px, py, rr, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
@@ -207,11 +171,10 @@ export function drawDecoration(
       ctx.lineWidth = Math.max(1, size * 0.025);
       ctx.lineCap = "round";
       for (let i = 0; i < n; i++) {
-        // Margin includes blade height (extends UP by ≤ 0.16*size) so the
-        // top of the tallest blade still sits inside the wavy clip.
-        const p = sampleInSafeHex(seed, i + 3000, size, size * 0.24);
-        const px = cx + p.x;
-        const py = cy + p.y;
+        const u = rand(seed, i * 6) - 0.5;
+        const v = rand(seed, i * 6 + 1) - 0.5;
+        const px = cx + u * size * 1.4;
+        const py = cy + v * size * 1.4;
         const blades = 3 + Math.floor(rand(seed, i * 6 + 2) * 3);
         for (let b = 0; b < blades; b++) {
           const ox = (b - blades / 2) * size * 0.04;
@@ -231,13 +194,16 @@ export function drawDecoration(
       ctx.lineWidth = Math.max(1, size * 0.025);
       ctx.lineCap = "round";
       for (let i = 0; i < n; i++) {
-        const p = sampleInSafeHex(seed, i + 4000, size, size * 0.24);
-        const rr = size * (0.08 + rand(seed, i * 4 + 2) * 0.10);
+        const u = rand(seed, i * 4) - 0.5;
+        const v = rand(seed, i * 4 + 1) - 0.5;
+        const px = cx + u * size * 1.2;
+        const py = cy + v * size * 1.2;
+        const rr = size * (0.10 + rand(seed, i * 4 + 2) * 0.12);
         const start = rand(seed, i * 4 + 3) * Math.PI * 2;
         const len = Math.PI * (0.6 + rand(seed, i * 4 + 4) * 0.6);
         ctx.globalAlpha = 0.5 + rand(seed, i * 4 + 5) * 0.4;
         ctx.beginPath();
-        ctx.arc(cx + p.x, cy + p.y, rr, start, start + len);
+        ctx.arc(px, py, rr, start, start + len);
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
@@ -267,8 +233,9 @@ export function drawBiomeBlob(
   ctx.fillRect(cx - size * 1.3, cy - size * 1.3, size * 2.6, size * 2.6);
 }
 
-// Stipple + decoration — the textured "look" of the biome. Caller must set
-// up the displaced hex clip beforehand so textures end at the wavy edge.
+// Stipple + decoration — the textured "look" of the biome. Caller is
+// expected to set up a clean hex clip beforehand; texture overflow at
+// hex edges is trimmed naturally by that clip.
 export function drawHexTexture(
   ctx: Ctx,
   q: number,

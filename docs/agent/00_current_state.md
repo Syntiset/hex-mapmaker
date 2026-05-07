@@ -8,7 +8,7 @@
 ## Что уже реализовано
 - Скаффолд Vite + React + TypeScript, зависимости установлены.
 - Каркас памяти (`CLAUDE.md` + `docs/agent/`).
-- Редактор v1.0.0: hex math, sceneFunc-рендер с viewport culling. **Биом ↔ Тайл архитектура**: биом — окружение/террейн (14 биомов с полной палитрой), тайл — feature/локация (35 тайлов с уникальными иконками для каждой группы, биом-агностичны). Cell хранит `biomeId` + `tileId`. UI: mode toggle «Биом / Тайл», палитра биомов и тайлов в 4 колонки в сайдбаре 360px. Multi-pass рендер: biome blob runtime → **per-cell sprite cache** (texture + glow + lighting запечены в offscreen canvas) → tile decoration/glow/icon. Покраска/стирание (с разделением биом/тайл), undo/redo, инструмент дорог (snap-to-hex-feature и free-hand), удаление дорог по близости к линии, подписи поверх, save/load JSON (v3 с миграцией v1/v2), export PNG.
+- Редактор v1.1.0: hex math, sceneFunc-рендер с viewport culling. **Биом ↔ Тайл архитектура**: биом — окружение/террейн (14 биомов с полной палитрой), тайл — feature/локация (35 тайлов с уникальными иконками для каждой группы, биом-агностичны). Cell хранит `biomeId` + `tileId`. UI: mode toggle «Биом / Тайл», палитра биомов и тайлов в 4 колонки в сайдбаре 360px. Рендер: чистые шестиугольные гексы с **soft blob blending** (radial gradient с alpha falloff в соседа) для мягких цветовых переходов. Per-cell sprite cache (texture + glow + lighting в offscreen canvas) для производительности. Wavy/displaced функционал удалён в v1.1.0 — давал артефакты, не оправдывал сложности (см. ISSUE-003). Покраска/стирание (с разделением биом/тайл), undo/redo, инструмент дорог (snap-to-hex-feature и free-hand), удаление дорог по близости к линии, подписи поверх, save/load JSON (v3 с миграцией v1/v2), export PNG.
 
 ## Критические ограничения
 - Все тайлы — процедурные плейсхолдеры (без художественных ассетов).
@@ -27,4 +27,4 @@
 - Schema JSON — версия 2, есть миграция с v1 (axial keys → world-pixel points для дорог).
 
 ## Дата обновления
-- 2026-05-07 (v1.0.0)
+- 2026-05-07 (v1.1.0)
