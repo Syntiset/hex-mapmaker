@@ -79,6 +79,31 @@ function stippleLayer(
   ctx.globalAlpha = 1;
 }
 
+// Safe-hex rejection sampler: returns a point inside a pointy-top hex
+// whose edges are pulled inward by `marginInward` (wavy clip allowance +
+// element-size buffer). Corners stay full because the wavy mask uses
+// sin(πt) and pins corners. This lets decorations populate the corner
+// regions of the hex which a simple inscribed disk leaves empty.
+const SIN60 = Math.sqrt(3) / 2;
+function sampleInSafeHex(
+  seed: number,
+  baseIdx: number,
+  size: number,
+  marginInward: number,
+): { x: number; y: number } {
+  const apothem = SIN60 * size - marginInward;
+  const bboxHalf = size * 0.97;
+  for (let a = 0; a < 24; a++) {
+    const u = (rand(seed, baseIdx * 64 + a * 2) - 0.5) * 2 * bboxHalf;
+    const v = (rand(seed, baseIdx * 64 + a * 2 + 1) - 0.5) * 2 * bboxHalf;
+    if (Math.abs(u) > apothem) continue;
+    if (Math.abs(0.5 * u + SIN60 * v) > apothem) continue;
+    if (Math.abs(-0.5 * u + SIN60 * v) > apothem) continue;
+    return { x: u, y: v };
+  }
+  return { x: 0, y: 0 };
+}
+
 export function drawDecoration(
   ctx: Ctx,
   q: number,
@@ -96,12 +121,9 @@ export function drawDecoration(
     case "pebbles": {
       const n = Math.round(6 + dec.density * 8);
       for (let i = 0; i < n; i++) {
-        // Centre of pebble inside r=0.55*size; pebble half-width up to 0.1*size
-        // → max extent ≈ 0.65*size, safely inside displaced clip.
-        const a = rand(seed, i * 3) * Math.PI * 2;
-        const rad = Math.sqrt(rand(seed, i * 3 + 1)) * size * 0.55;
-        const px = cx + Math.cos(a) * rad;
-        const py = cy + Math.sin(a) * rad;
+        const p = sampleInSafeHex(seed, i, size, size * 0.22);
+        const px = cx + p.x;
+        const py = cy + p.y;
         const rx = size * (0.05 + rand(seed, i * 3 + 2) * 0.05);
         const ry = rx * (0.55 + rand(seed, i * 3 + 50) * 0.3);
         // shadow under
@@ -128,34 +150,36 @@ export function drawDecoration(
     // shape-decoration ever crosses the displaced clip regardless of mask.
     case "cracks": {
       const n = Math.round(2 + dec.density * 2);
-      const safeR = size * 0.60; // clamp segment ends to this radius
+      const margin = size * 0.20;
+      const apothemSafe = SIN60 * size - margin;
       ctx.strokeStyle = dec.color;
       ctx.lineWidth = Math.max(1, size * 0.025);
       ctx.lineCap = "round";
       for (let i = 0; i < n; i++) {
-        const a0 = rand(seed, i * 5) * Math.PI * 2;
-        const r0 = Math.sqrt(rand(seed, i * 5 + 1)) * size * 0.35;
-        const sx = cx + Math.cos(a0) * r0;
-        const sy = cy + Math.sin(a0) * r0;
+        const start = sampleInSafeHex(seed, i + 1000, size, margin);
         const segs = 3 + Math.floor(rand(seed, i * 5 + 2) * 3);
         ctx.beginPath();
-        let px = sx, py = sy;
-        ctx.moveTo(px, py);
+        let px = start.x, py = start.y;
+        ctx.moveTo(cx + px, cy + py);
         for (let s = 0; s < segs; s++) {
           const angle = rand(seed, i * 5 + 10 + s) * Math.PI * 2;
           const len = size * (0.06 + rand(seed, i * 5 + 20 + s) * 0.10);
           let nx = px + Math.cos(angle) * len;
           let ny = py + Math.sin(angle) * len;
-          // Clamp end-point onto the safe disk so the crack never wanders
-          // out of the worst-case wavy clip boundary.
-          const dx = nx - cx, dy = ny - cy;
-          const d = Math.sqrt(dx * dx + dy * dy);
-          if (d > safeR) {
-            nx = cx + (dx / d) * safeR;
-            ny = cy + (dy / d) * safeR;
+          // Clamp end-point onto the safe hex shape so the crack never
+          // wanders out of the worst-case wavy clip boundary.
+          const projections = [
+            Math.abs(nx),
+            Math.abs(0.5 * nx + SIN60 * ny),
+            Math.abs(-0.5 * nx + SIN60 * ny),
+          ];
+          const maxP = Math.max(...projections);
+          if (maxP > apothemSafe) {
+            const k = apothemSafe / maxP;
+            nx *= k; ny *= k;
           }
           px = nx; py = ny;
-          ctx.lineTo(px, py);
+          ctx.lineTo(cx + px, cy + py);
         }
         ctx.globalAlpha = 0.7;
         ctx.stroke();
@@ -167,14 +191,11 @@ export function drawDecoration(
       const n = Math.round(12 + dec.density * 24);
       ctx.fillStyle = dec.color;
       for (let i = 0; i < n; i++) {
-        const a = rand(seed, i * 4) * Math.PI * 2;
-        const rad = Math.sqrt(rand(seed, i * 4 + 1)) * size * 0.62;
-        const px = cx + Math.cos(a) * rad;
-        const py = cy + Math.sin(a) * rad;
+        const p = sampleInSafeHex(seed, i + 2000, size, size * 0.20);
         const rr = size * (0.012 + rand(seed, i * 4 + 2) * 0.022);
         ctx.globalAlpha = 0.55 + rand(seed, i * 4 + 3) * 0.4;
         ctx.beginPath();
-        ctx.arc(px, py, rr, 0, Math.PI * 2);
+        ctx.arc(cx + p.x, cy + p.y, rr, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
@@ -186,13 +207,11 @@ export function drawDecoration(
       ctx.lineWidth = Math.max(1, size * 0.025);
       ctx.lineCap = "round";
       for (let i = 0; i < n; i++) {
-        // Centre of cluster inside r=0.50*size; blades extend up to 0.16*size
-        // upward → tuft tip at most 0.66*size from centre, still inside safe zone
-        // when the base is in the upper half of safe disk.
-        const a = rand(seed, i * 6) * Math.PI * 2;
-        const rad = Math.sqrt(rand(seed, i * 6 + 1)) * size * 0.50;
-        const px = cx + Math.cos(a) * rad;
-        const py = cy + Math.sin(a) * rad;
+        // Margin includes blade height (extends UP by ≤ 0.16*size) so the
+        // top of the tallest blade still sits inside the wavy clip.
+        const p = sampleInSafeHex(seed, i + 3000, size, size * 0.24);
+        const px = cx + p.x;
+        const py = cy + p.y;
         const blades = 3 + Math.floor(rand(seed, i * 6 + 2) * 3);
         for (let b = 0; b < blades; b++) {
           const ox = (b - blades / 2) * size * 0.04;
@@ -212,16 +231,13 @@ export function drawDecoration(
       ctx.lineWidth = Math.max(1, size * 0.025);
       ctx.lineCap = "round";
       for (let i = 0; i < n; i++) {
-        const a = rand(seed, i * 4) * Math.PI * 2;
-        const rad = Math.sqrt(rand(seed, i * 4 + 1)) * size * 0.40;
-        const px = cx + Math.cos(a) * rad;
-        const py = cy + Math.sin(a) * rad;
+        const p = sampleInSafeHex(seed, i + 4000, size, size * 0.24);
         const rr = size * (0.08 + rand(seed, i * 4 + 2) * 0.10);
         const start = rand(seed, i * 4 + 3) * Math.PI * 2;
         const len = Math.PI * (0.6 + rand(seed, i * 4 + 4) * 0.6);
         ctx.globalAlpha = 0.5 + rand(seed, i * 4 + 5) * 0.4;
         ctx.beginPath();
-        ctx.arc(px, py, rr, start, start + len);
+        ctx.arc(cx + p.x, cy + p.y, rr, start, start + len);
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
