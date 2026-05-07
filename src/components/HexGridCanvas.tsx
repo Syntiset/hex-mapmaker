@@ -364,14 +364,6 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
     const c = ctx as unknown as { _context: CanvasRenderingContext2D };
     const raw = c._context;
     raw.save();
-    // Empty hex background fill (default color) for cells in the grid.
-    raw.fillStyle = "#262620";
-    raw.beginPath();
-    for (const { cx, cy } of visibleCoords) {
-      pathHex(raw, cx, cy, grid.hexSize);
-    }
-    raw.fill();
-
     // Collect cells with biomes (terrain layer) and cells with tiles (features).
     const biomed: { q: number; r: number; cx: number; cy: number; biome: ReturnType<typeof biomeById.get> }[] = [];
     const tiled: { q: number; r: number; cx: number; cy: number; tile: ReturnType<typeof tileById.get> }[] = [];
@@ -387,6 +379,25 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
         const tile = tileById.get(cell.tileId);
         if (tile) tiled.push({ q, r, cx, cy, tile });
       }
+    }
+
+    // BG layer per-cell with biome.fill (or default empty colour). Hex shape is
+    // slightly inflated (+0.5) so the antialiased fade falls just outside the
+    // geometric edge — adjacent BG fills overlap by ~1 px at the seam, fully
+    // covering the gap. The biome sprite drawn on top has its own clip at
+    // exact hex size; its antialiased edge composites over our inflated BG of
+    // the OWN biome's colour → seam shows biome colour, not dark fallback.
+    const biomeByKey = new Map<string, NonNullable<ReturnType<typeof biomeById.get>>>();
+    for (const b of biomed) {
+      if (b.biome) biomeByKey.set(axialKey(b.q, b.r), b.biome);
+    }
+    for (const { q, r, cx, cy } of visibleCoords) {
+      const k = axialKey(q, r);
+      const biome = biomeByKey.get(k);
+      raw.fillStyle = biome?.fill ?? "#262620";
+      raw.beginPath();
+      pathHex(raw, cx, cy, grid.hexSize + 0.5);
+      raw.fill();
     }
 
     // ── BIOME LAYER ──

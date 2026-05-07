@@ -5,6 +5,7 @@ import { Toolbar } from "./components/Toolbar";
 import { TilePalette } from "./components/TilePalette";
 import { StatusBar } from "./components/StatusBar";
 import { HexGridCanvas, type ViewState } from "./components/HexGridCanvas";
+import { HelpModal } from "./components/HelpModal";
 import { useMapStore } from "./store/mapStore";
 import { axialToPixel, hexHeight, hexWidth, rectMap } from "./hex/hex";
 import "./styles.css";
@@ -14,6 +15,7 @@ export default function App() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [hoverKey, setHoverKey] = useState<string | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
   const grid = useMapStore((s) => s.grid);
   const [view, setView] = useState<ViewState>(() => ({
     scale: 1,
@@ -121,7 +123,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <TopBar stageRef={stageRef} />
+      <TopBar stageRef={stageRef} onOpenHelp={() => setHelpOpen(true)} />
       <div className="main">
         <aside className="left">
           <Toolbar />
@@ -146,7 +148,8 @@ export default function App() {
           </div>
         </div>
       </div>
-      <StatusBar hoverKey={hoverKey} />
+      <StatusBar hoverKey={hoverKey} onOpenHelp={() => setHelpOpen(true)} />
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }

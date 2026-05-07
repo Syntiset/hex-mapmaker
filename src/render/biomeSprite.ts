@@ -53,11 +53,7 @@ function buildSprite(
 
   const cx = half;
   const cy = half;
-
-  // Pass 0 — solid biome.fill base inside hex clip. Without this, the sprite's
-  // background (between stipple dots) is transparent and lets neighbouring
-  // cells' Pass 1 blob bleed through with row-major draw-order asymmetry.
-  // Solid base makes each hex fully opaque — no cross-cell colour replacement.
+  // Pass 0 — solid biome.fill base inside hex clip.
   ctx.save();
   ctx.beginPath();
   pathHex(ctx, cx, cy, size);

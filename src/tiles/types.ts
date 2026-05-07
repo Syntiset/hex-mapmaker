@@ -100,6 +100,7 @@ export interface TileDef {
   icon: IconKind;
   iconColor?: string;
   iconColor2?: string;
+  iconScale?: number;         // 1 = default; >1 enlarges the icon (e.g. trees)
   glow?: GlowDef;             // tile-specific overlay glow (optional)
   decoration?: DecorationDef; // tile-specific decoration overlay (optional)
 }

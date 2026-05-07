@@ -193,30 +193,37 @@ export const FALLOUT_TILES: TileDef[] = [
   {
     id: "lone-tree", name: "Одинокое дерево",
     icon: "tree-lone", iconColor: "#2a4018", iconColor2: "#3a5a24",
+    iconScale: 2,
   },
   {
     id: "sparse-grove", name: "Редкая роща",
     icon: "tree-sparse", iconColor: "#28401a", iconColor2: "#3a5a24",
+    iconScale: 2,
   },
   {
     id: "grove", name: "Роща",
     icon: "tree", iconColor: "#243b18", iconColor2: "#345020",
+    iconScale: 2,
   },
   {
     id: "dense-forest", name: "Густой лес",
     icon: "tree-dense", iconColor: "#1c3010", iconColor2: "#2a4218",
+    iconScale: 2,
   },
   {
     id: "dead-grove", name: "Сухая роща",
     icon: "deadtree-sparse", iconColor: "#3e342a", iconColor2: "#5a4a36",
+    iconScale: 2,
   },
   {
     id: "dense-deadwood", name: "Густой сухостой",
     icon: "deadtree-dense", iconColor: "#322a20", iconColor2: "#48382a",
+    iconScale: 2,
   },
   {
     id: "birch-cluster", name: "Берёзовая роща",
     icon: "birch", iconColor: "#3a4a28", iconColor2: "#5a6e3c",
+    iconScale: 2,
   },
 
   // ── Радиоактивные феномены (на любом биоме) ──
@@ -229,12 +236,14 @@ export const FALLOUT_TILES: TileDef[] = [
   {
     id: "mutated-flora", name: "Мутафлора",
     icon: "tree", iconColor: "#1a3008", iconColor2: "#5a8024",
+    iconScale: 2,
     glow: { color: "#a8d050", alpha: 0.12, radius: 0.85 },
     decoration: { kind: "tufts", color: "#3a5a18", density: 0.5 },
   },
   {
     id: "fungal-bloom", name: "Грибной мутант",
     icon: "swamp", iconColor: "#7c5e88", iconColor2: "#3a2840",
+    iconScale: 2,
     glow: { color: "#9874a8", alpha: 0.14, radius: 0.85 },
     decoration: { kind: "pebbles", color: "#5a3a68", density: 0.4 },
   },

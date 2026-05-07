@@ -41,7 +41,11 @@ function buildSprite(
   r: number,
   size: number,
 ): HTMLCanvasElement {
-  const half = Math.ceil(size * SPRITE_MARGIN);
+  const iconScale = tile.iconScale ?? 1;
+  // Bump margin proportionally so an enlarged icon still fits within the
+  // sprite canvas + drop shadow has room.
+  const margin = SPRITE_MARGIN * Math.max(1, iconScale);
+  const half = Math.ceil(size * margin);
   const dim = half * 2;
   const c = document.createElement("canvas");
   c.width = dim * SPRITE_SCALE;
@@ -66,9 +70,10 @@ function buildSprite(
   // Pass 2 — tile glow (no clip; halo extends within sprite bbox).
   drawHexGlow(ctx, cx, cy, size, tile);
 
-  // Pass 3 — icon with drop shadow.
+  // Pass 3 — icon with drop shadow. iconScale enlarges the icon (vegetation
+  // tiles use 2 to make trees more readable on the map).
   if (tile.icon !== "none") {
-    drawIconEnhanced(ctx, q, r, cx, cy, size, tile);
+    drawIconEnhanced(ctx, q, r, cx, cy, size * iconScale, tile);
   }
 
   return c;
@@ -100,6 +105,7 @@ export function getTileSprite(
     }
     cache.set(key, canvas);
   }
-  const half = Math.ceil(size * SPRITE_MARGIN);
+  const margin = SPRITE_MARGIN * Math.max(1, tile.iconScale ?? 1);
+  const half = Math.ceil(size * margin);
   return { canvas, half, dim: half * 2 };
 }

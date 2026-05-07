@@ -352,7 +352,7 @@ export function drawHexLighting(ctx: Ctx, cx: number, cy: number, size: number) 
   ctx.fillRect(cx - size * 1.1, cy - size * 1.1, size * 2.2, size * 2.2);
 
   const hi = ctx.createLinearGradient(cx, cy - size, cx, cy + size * 0.2);
-  hi.addColorStop(0, "rgba(255,255,255,0.10)");
+  hi.addColorStop(0, "rgba(255,255,255,0.04)");
   hi.addColorStop(1, "rgba(255,255,255,0)");
   ctx.fillStyle = hi;
   ctx.fillRect(cx - size * 1.1, cy - size * 1.1, size * 2.2, size * 2.2);

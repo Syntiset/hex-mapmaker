@@ -342,3 +342,4 @@ button:hover { background: #3a3a26; color: var(--accent); }
   color: var(--accent);
 }
 .statusbar .hint { margin-left: auto; color: #7f7a60; }
+.statusbar .status-help { padding: 2px 8px; font-size: 11px; }
