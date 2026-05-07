@@ -1,4 +1,4 @@
-import { hexCorners } from "../hex/hex";
+import { hexCorners, NEIGHBOR_OFFSETS, SQRT3 } from "../hex/hex";
 import type { RoadPath } from "../store/mapStore";
 import type { BiomeDef, DecorationDef, GlowDef, RoadType, TileDef } from "../tiles/types";
 import { hash3, rand } from "./noise";
@@ -49,6 +49,20 @@ export function drawHexStroke(
 // Caller is expected to set up hex (or displaced-hex) clip before calling.
 // ============================================================
 
+// Pointy-top hex containment with margin. Returns true if a circle of radius
+// `dotR` centred at (dx, dy) relative to the hex centre fits ENTIRELY inside
+// the hex. Six edge normals collapse to three absolute inequalities (opposing
+// edges share normal direction).
+const SQRT3_OVER_2 = Math.sqrt(3) / 2;
+function dotFitsInHex(dx: number, dy: number, dotR: number, apothem: number): boolean {
+  const m = apothem - dotR;
+  if (m <= 0) return false;
+  if (Math.abs(dx) > m) return false;
+  if (Math.abs(0.5 * dx + SQRT3_OVER_2 * dy) > m) return false;
+  if (Math.abs(-0.5 * dx + SQRT3_OVER_2 * dy) > m) return false;
+  return true;
+}
+
 function stippleLayer(
   ctx: Ctx,
   q: number,
@@ -64,16 +78,20 @@ function stippleLayer(
   alphaSpan: number,
 ) {
   const seed = hash3(q, r, layerIdx);
+  const apothem = size * SQRT3_OVER_2;
   ctx.fillStyle = color;
   for (let i = 0; i < count; i++) {
     const u = rand(seed, i * 2);
     const v = rand(seed, i * 2 + 1);
-    const px = cx + (u - 0.5) * size * 1.85;
-    const py = cy + (v - 0.5) * size * 1.85;
+    const dx = (u - 0.5) * size * 1.85;
+    const dy = (v - 0.5) * size * 1.85;
     const rr = baseRadius * (0.4 + rand(seed, i * 2 + 100) * 0.7);
+    // Skip dots whose circle would be partially clipped by the hex edge —
+    // looks better to omit them than to render half-discs against the seam.
+    if (!dotFitsInHex(dx, dy, rr, apothem)) continue;
     ctx.globalAlpha = alphaMin + rand(seed, i * 2 + 200) * alphaSpan;
     ctx.beginPath();
-    ctx.arc(px, py, rr, 0, Math.PI * 2);
+    ctx.arc(cx + dx, cy + dy, rr, 0, Math.PI * 2);
     ctx.fill();
   }
   ctx.globalAlpha = 1;
@@ -90,6 +108,7 @@ export function drawDecoration(
 ) {
   if (dec.kind === "none" || dec.density <= 0) return;
   const seed = hash3(q, r, 7);
+  const apothem = size * SQRT3_OVER_2;
   ctx.save();
 
   // All decorations are sampled in a simple rectangular bbox around the hex
@@ -101,10 +120,13 @@ export function drawDecoration(
       for (let i = 0; i < n; i++) {
         const u = rand(seed, i * 3) - 0.5;
         const v = rand(seed, i * 3 + 1) - 0.5;
-        const px = cx + u * size * 1.5;
-        const py = cy + v * size * 1.5;
+        const dx = u * size * 1.5;
+        const dy = v * size * 1.5;
         const rx = size * (0.05 + rand(seed, i * 3 + 2) * 0.05);
         const ry = rx * (0.55 + rand(seed, i * 3 + 50) * 0.3);
+        if (!dotFitsInHex(dx, dy, rx * 1.1, apothem)) continue;
+        const px = cx + dx;
+        const py = cy + dy;
         // shadow under
         ctx.fillStyle = "rgba(0,0,0,0.32)";
         ctx.beginPath();
@@ -129,11 +151,15 @@ export function drawDecoration(
       ctx.lineWidth = Math.max(1, size * 0.025);
       ctx.lineCap = "round";
       for (let i = 0; i < n; i++) {
-        const sx = cx + (rand(seed, i * 5) - 0.5) * size * 1.3;
-        const sy = cy + (rand(seed, i * 5 + 1) - 0.5) * size * 1.3;
+        const dx = (rand(seed, i * 5) - 0.5) * size * 1.3;
+        const dy = (rand(seed, i * 5 + 1) - 0.5) * size * 1.3;
+        // Conservative margin — segments add up to ~5 × 0.3*size = 1.5*size of
+        // path length, but typical reach from start is ~0.4*size. Skip starts
+        // that are already too close to the edge.
+        if (!dotFitsInHex(dx, dy, size * 0.35, apothem)) continue;
         const segs = 3 + Math.floor(rand(seed, i * 5 + 2) * 3);
         ctx.beginPath();
-        let px = sx, py = sy;
+        let px = cx + dx, py = cy + dy;
         ctx.moveTo(px, py);
         for (let s = 0; s < segs; s++) {
           const angle = rand(seed, i * 5 + 10 + s) * Math.PI * 2;
@@ -154,12 +180,13 @@ export function drawDecoration(
       for (let i = 0; i < n; i++) {
         const u = rand(seed, i * 4) - 0.5;
         const v = rand(seed, i * 4 + 1) - 0.5;
-        const px = cx + u * size * 1.7;
-        const py = cy + v * size * 1.7;
+        const dx = u * size * 1.7;
+        const dy = v * size * 1.7;
         const rr = size * (0.012 + rand(seed, i * 4 + 2) * 0.022);
+        if (!dotFitsInHex(dx, dy, rr, apothem)) continue;
         ctx.globalAlpha = 0.55 + rand(seed, i * 4 + 3) * 0.4;
         ctx.beginPath();
-        ctx.arc(px, py, rr, 0, Math.PI * 2);
+        ctx.arc(cx + dx, cy + dy, rr, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
@@ -173,8 +200,12 @@ export function drawDecoration(
       for (let i = 0; i < n; i++) {
         const u = rand(seed, i * 6) - 0.5;
         const v = rand(seed, i * 6 + 1) - 0.5;
-        const px = cx + u * size * 1.4;
-        const py = cy + v * size * 1.4;
+        const dx = u * size * 1.4;
+        const dy = v * size * 1.4;
+        // Blades grow up to ~0.16*size; require fit with that margin.
+        if (!dotFitsInHex(dx, dy, size * 0.18, apothem)) continue;
+        const px = cx + dx;
+        const py = cy + dy;
         const blades = 3 + Math.floor(rand(seed, i * 6 + 2) * 3);
         for (let b = 0; b < blades; b++) {
           const ox = (b - blades / 2) * size * 0.04;
@@ -196,14 +227,15 @@ export function drawDecoration(
       for (let i = 0; i < n; i++) {
         const u = rand(seed, i * 4) - 0.5;
         const v = rand(seed, i * 4 + 1) - 0.5;
-        const px = cx + u * size * 1.2;
-        const py = cy + v * size * 1.2;
+        const dx = u * size * 1.2;
+        const dy = v * size * 1.2;
         const rr = size * (0.10 + rand(seed, i * 4 + 2) * 0.12);
+        if (!dotFitsInHex(dx, dy, rr, apothem)) continue;
         const start = rand(seed, i * 4 + 3) * Math.PI * 2;
         const len = Math.PI * (0.6 + rand(seed, i * 4 + 4) * 0.6);
         ctx.globalAlpha = 0.5 + rand(seed, i * 4 + 5) * 0.4;
         ctx.beginPath();
-        ctx.arc(px, py, rr, start, start + len);
+        ctx.arc(cx + dx, cy + dy, rr, start, start + len);
         ctx.stroke();
       }
       ctx.globalAlpha = 1;
@@ -231,6 +263,42 @@ export function drawBiomeBlob(
   blob.addColorStop(1, biome.fill + "00");
   ctx.fillStyle = blob;
   ctx.fillRect(cx - size * 1.3, cy - size * 1.3, size * 2.6, size * 2.6);
+}
+
+// Radial neighbour-tint inside a cell's own hex, near the shared edge.
+// Symmetric by construction: each cell paints one blob per different-biome
+// neighbour, in the neighbour's colour, clipped to its own hex shape. Smooth
+// radial falloff in all directions — no rectangle corners → no triangle/cushion
+// artefacts. Caller iterates ALL 6 sides per cell (no canonical-pair logic
+// needed because each blob lives in its own hex only).
+export function drawNeighbourTint(
+  ctx: Ctx,
+  cx: number,
+  cy: number,
+  size: number,
+  sideIdx: number,
+  neighbourBiome: BiomeDef,
+) {
+  const off = NEIGHBOR_OFFSETS[sideIdx];
+  const dx = SQRT3 * size * (off.q + off.r / 2);
+  const dy = 1.5 * size * off.r;
+  const len = Math.hypot(dx, dy);
+  const ux = dx / len, uy = dy / len;
+  // Blob centre offset from cell centre toward the edge (apothem ≈ 0.866*size).
+  const offset = size * 0.7;
+  const bx = cx + ux * offset;
+  const by = cy + uy * offset;
+
+  ctx.save();
+  ctx.beginPath();
+  pathHex(ctx, cx, cy, size);
+  ctx.clip();
+  const grad = ctx.createRadialGradient(bx, by, 0, bx, by, size * 0.7);
+  grad.addColorStop(0, neighbourBiome.fill + "65");
+  grad.addColorStop(1, neighbourBiome.fill + "00");
+  ctx.fillStyle = grad;
+  ctx.fillRect(cx - size * 1.2, cy - size * 1.2, size * 2.4, size * 2.4);
+  ctx.restore();
 }
 
 // Stipple + decoration — the textured "look" of the biome. Caller is

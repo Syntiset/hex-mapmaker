@@ -8,12 +8,14 @@ import {
   edgeMidpoint,
   hexHeight,
   hexWidth,
+  NEIGHBOR_OFFSETS,
   pixelToAxial,
 } from "../hex/hex";
 import { useMapStore } from "../store/mapStore";
 import {
-  drawBiomeBlob,
+  drawHexGlow,
   drawHexStroke,
+  drawNeighbourTint,
   drawRoadPaths,
   pathHex,
 } from "../render/drawHex";
@@ -388,16 +390,13 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
     }
 
     // ── BIOME LAYER ──
-    // Pass 1 — soft radial blob with biome's base color (no clip).
-    // Adjacent biome blobs overlap and their alpha tails blend cooler/warmer
-    // biome colours into a smooth gradient on the seam. Runtime, not baked
-    // into sprites — the blob extends past hex into neighbour territory.
-    for (const b of biomed) {
-      if (!b.biome) continue;
-      drawBiomeBlob(raw, b.cx, b.cy, grid.hexSize, b.biome);
-    }
+    // Solid biome base is now baked INTO the sprite (Pass 0 in biomeSprite.ts).
+    // The previous runtime blob with no clip caused asymmetric cross-biome
+    // colour bleed (later-drawn cells overpainted earlier ones in row-major
+    // order). With opaque sprites, cross-biome blending is the sole job of
+    // Pass 3 (edge-blend) which is symmetric by construction.
 
-    // Pass 2 — composite cached per-cell sprite (texture + glow + lighting).
+    // Pass 2 — composite cached per-cell sprite (solid base + texture + lighting).
     // Sprite is built once per (biomeId, q, r, hexSize) and reused across
     // frames. Sprites are baked at SPRITE_SCALE× backing-store resolution so
     // they stay crisp on HiDPI; drawImage passes explicit world-pixel size.
@@ -411,6 +410,34 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
         sprite.dim,
         sprite.dim,
       );
+    }
+
+    // Pass 3 — neighbour tint blobs. For each biomed cell, for each of its 6
+    // sides where the neighbour has a DIFFERENT biome, paint a soft radial
+    // blob inside the cell's own hex (clipped) in the neighbour's colour.
+    // Symmetric by construction (every cell paints its own side). Smooth
+    // radial falloff → no corner artefacts.
+    for (const b of biomed) {
+      if (!b.biome) continue;
+      for (let s = 0; s < 6; s++) {
+        const off = NEIGHBOR_OFFSETS[s];
+        const nKey = axialKey(b.q + off.q, b.r + off.r);
+        const nCell = cells[nKey];
+        if (!nCell?.biomeId || nCell.biomeId === b.biome.id) continue;
+        const nBiome = biomeById.get(nCell.biomeId);
+        if (!nBiome) continue;
+        drawNeighbourTint(raw, b.cx, b.cy, grid.hexSize, s, nBiome);
+      }
+    }
+
+    // Pass 4 — symmetric ambient glow runtime overlay. Glow used to be baked
+    // into each biome sprite without hex-clip, which produced an asymmetric
+    // bleed (late-drawn cells' glow visible only on N/W neighbours, covered
+    // by S/E neighbours' sprites). Now drawn AFTER all biome sprites and
+    // edge-blends so each glow lands on every neighbour identically.
+    for (const b of biomed) {
+      if (!b.biome) continue;
+      drawHexGlow(raw, b.cx, b.cy, grid.hexSize, b.biome);
     }
 
     // ── TILE LAYER (features on top of biome) ──

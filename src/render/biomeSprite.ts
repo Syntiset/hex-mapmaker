@@ -11,7 +11,6 @@
 
 import type { BiomeDef } from "../tiles/types";
 import {
-  drawHexGlow,
   drawHexLighting,
   drawHexTexture,
   pathHex,
@@ -55,6 +54,18 @@ function buildSprite(
   const cx = half;
   const cy = half;
 
+  // Pass 0 — solid biome.fill base inside hex clip. Without this, the sprite's
+  // background (between stipple dots) is transparent and lets neighbouring
+  // cells' Pass 1 blob bleed through with row-major draw-order asymmetry.
+  // Solid base makes each hex fully opaque — no cross-cell colour replacement.
+  ctx.save();
+  ctx.beginPath();
+  pathHex(ctx, cx, cy, size);
+  ctx.clip();
+  ctx.fillStyle = biome.fill;
+  ctx.fillRect(cx - size, cy - size, size * 2, size * 2);
+  ctx.restore();
+
   // Pass 1 — texture (stipple + decoration) inside clean hex clip.
   ctx.save();
   ctx.beginPath();
@@ -63,10 +74,10 @@ function buildSprite(
   drawHexTexture(ctx, q, r, cx, cy, size, biome);
   ctx.restore();
 
-  // Pass 2 — ambient glow (no clip; small extension past hex).
-  drawHexGlow(ctx, cx, cy, size, biome);
+  // Glow moved to a runtime post-pass in HexGridCanvas (drawn after all biome
+  // sprites + edge-blends so each glow lands symmetrically on every neighbour).
 
-  // Pass 3 — depth lighting in clean hex clip.
+  // Pass 2 — depth lighting in clean hex clip.
   ctx.save();
   ctx.beginPath();
   pathHex(ctx, cx, cy, size);
