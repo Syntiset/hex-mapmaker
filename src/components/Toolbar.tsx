@@ -40,12 +40,18 @@ export function Toolbar() {
         <button
           className={paintMode === "biome" ? "tool active" : "tool"}
           style={{ flex: 1, padding: "4px 6px", fontSize: 11 }}
-          onClick={() => { setPaintMode("biome"); setTool("paint"); }}
+          onClick={() => {
+            setPaintMode("biome");
+            if (tool !== "paint" && tool !== "erase") setTool("paint");
+          }}
         >Биом</button>
         <button
           className={paintMode === "tile" ? "tool active" : "tool"}
           style={{ flex: 1, padding: "4px 6px", fontSize: 11 }}
-          onClick={() => { setPaintMode("tile"); setTool("paint"); }}
+          onClick={() => {
+            setPaintMode("tile");
+            if (tool !== "paint" && tool !== "erase") setTool("paint");
+          }}
         >Тайл</button>
       </div>
       <div className="sep" />

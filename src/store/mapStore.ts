@@ -63,6 +63,7 @@ export interface MapState {
   beginRoadPath: (pt: Point2D) => void;
   continueRoadPath: (pt: Point2D) => void;
   commitRoadPath: () => void;
+  cancelRoadPath: () => void;
   eraseRoadNear: (pt: Point2D, radius: number) => void;
   setLabel: (key: string, text: string) => void;
   toggleGrid: () => void;
@@ -188,6 +189,10 @@ export const useMapStore = create<MapState>((set, get) => ({
     const last = s.draftPoints[s.draftPoints.length - 1];
     if (last.x === pt.x && last.y === pt.y) return;
     set({ draftPoints: [...s.draftPoints, pt] });
+  },
+
+  cancelRoadPath: () => {
+    if (get().draftPoints !== null) set({ draftPoints: null });
   },
 
   commitRoadPath: () => {

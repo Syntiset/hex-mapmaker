@@ -1,5 +1,15 @@
 # 04_changelog.md
 
+## 2026-05-07 — v1.3.2 — Toolbar mode-buttons + tach pinch revert
+
+- **Toolbar:** кнопки «Биом / Тайл» в `Toolbar.tsx` тоже форсили `setTool("paint")` (пропущены в v1.3.1). Заменены на тот же conditional что в палитре: переключают только `paintMode`, инструмент трогают только если он не paint и не erase.
+- **Pinch revert:** при тач-pinch первый палец успевал зарегистрировать `pointerdown` и сделать paint/erase/road-erase до того, как второй палец вызывал pinch detection. Теперь:
+  - `lastActionRef` запоминает тип действия в pointerdown.
+  - На входе в pinch (size === 2): для paint/erase/road-erase → `undo()`, для road → новый action `cancelRoadPath()` (просто сбрасывает draftPoints без коммита).
+  - На pointerup сбрасывается обратно в null.
+- **Store:** добавлен `cancelRoadPath` action в `mapStore.ts`.
+- **Vite config:** `server.allowedHosts` для `.loca.lt` / `.trycloudflare.com` / `.ngrok-free.app` / `.ngrok.app` — чтобы dev-сервер открывался через тоннели.
+
 ## 2026-05-07 — v1.3.1 — QoL фиксы по фидбеку
 
 - **Bug:** B/T (и клик по биому/тайлу в палитре) больше не переключают инструмент на «кисть». Теперь B/T меняют только `paintMode`, оставляя текущий tool. Палитра имеет helper `ensurePaintCompatibleTool()` — нудит к paint только если текущий tool ни paint, ни erase (т.е. road/label/pan). Erase сохраняется при смене биома или тайла.

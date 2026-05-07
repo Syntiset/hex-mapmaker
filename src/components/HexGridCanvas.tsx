@@ -61,6 +61,8 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
   const commitRoadPath = useMapStore((s) => s.commitRoadPath);
   const eraseRoadNear = useMapStore((s) => s.eraseRoadNear);
   const setLabel = useMapStore((s) => s.setLabel);
+  const cancelRoadPath = useMapStore((s) => s.cancelRoadPath);
+  const undo = useMapStore((s) => s.undo);
 
   const tileById = useMemo(() => new Map(tiles.map((t) => [t.id, t])), [tiles]);
   const biomeById = useMemo(() => new Map(biomes.map((b) => [b.id, b])), [biomes]);
@@ -80,6 +82,7 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
   const lastKey = useRef<string | null>(null);
   const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinchRef = useRef<{ dist: number; cx: number; cy: number; scale: number } | null>(null);
+  const lastActionRef = useRef<"paint" | "erase" | "road" | "road-erase" | null>(null);
 
   // Recenter on grid change.
   useEffect(() => {
@@ -208,7 +211,9 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
     const evt = e.evt;
     pointersRef.current.set(evt.pointerId, { x: evt.clientX, y: evt.clientY });
 
-    // Two-finger pinch gesture: cancel any in-progress paint/road, capture state.
+    // Two-finger pinch gesture: revert any action that the first pointer's
+    // pointerdown already triggered (paint/erase/road-erase add to history;
+    // road draft is cleared without commit). Then capture pinch state.
     if (pointersRef.current.size === 2) {
       const pts = Array.from(pointersRef.current.values());
       const dx = pts[0].x - pts[1].x, dy = pts[0].y - pts[1].y;
@@ -218,7 +223,10 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
         cy: (pts[0].y + pts[1].y) / 2,
         scale,
       };
-      if (painting.current && tool === "road") commitRoadPath();
+      const last = lastActionRef.current;
+      if (last === "road") cancelRoadPath();
+      else if (last === "paint" || last === "erase" || last === "road-erase") undo();
+      lastActionRef.current = null;
       painting.current = false;
       lastKey.current = null;
       dragging.current = false;
@@ -237,16 +245,19 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
     if (tool === "road") {
       const pt = freeHandRoad ? world : snapToHexFeature(world);
       beginRoadPath(pt);
+      lastActionRef.current = "road";
       return;
     }
     if (tool === "road-erase") {
+      const before = useMapStore.getState().roadPaths.length;
       eraseRoadNear(world, grid.hexSize * 0.5);
+      if (useMapStore.getState().roadPaths.length !== before) lastActionRef.current = "road-erase";
       return;
     }
     if (!hx) return;
     lastKey.current = hx.key;
-    if (tool === "paint") paint(hx.key);
-    else if (tool === "erase") erase(hx.key);
+    if (tool === "paint") { paint(hx.key); lastActionRef.current = "paint"; }
+    else if (tool === "erase") { erase(hx.key); lastActionRef.current = "erase"; }
     else if (tool === "label") {
       const current = cells[hx.key]?.label ?? "";
       const text = window.prompt("Подпись гекса:", current);
@@ -325,6 +336,7 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
     painting.current = false;
     dragging.current = false;
     lastKey.current = null;
+    lastActionRef.current = null;
   }
 
   function handleWheel(e: Konva.KonvaEventObject<WheelEvent>) {
