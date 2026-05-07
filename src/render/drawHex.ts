@@ -228,13 +228,16 @@ export function drawBiomeBlob(
   size: number,
   biome: BiomeDef,
 ) {
-  const blob = ctx.createRadialGradient(cx, cy, size * 0.55, cx, cy, size * 1.25);
+  const blob = ctx.createRadialGradient(cx, cy, size * 0.6, cx, cy, size * 1.18);
+  // Inside hex: fully transparent — never overpaint own sprite/icon.
   blob.addColorStop(0, biome.fill + "00");
-  blob.addColorStop(0.45, biome.fill + "00");
-  blob.addColorStop(0.7, biome.fill + "70");
+  blob.addColorStop(0.6, biome.fill + "00");
+  // Peak just outside hex edge (apothem ≈ 0.866 of size). Low alpha so two
+  // adjacent fringes (same biome on both sides) don't visibly double-up.
+  blob.addColorStop(0.75, biome.fill + "20");
   blob.addColorStop(1, biome.fill + "00");
   ctx.fillStyle = blob;
-  ctx.fillRect(cx - size * 1.3, cy - size * 1.3, size * 2.6, size * 2.6);
+  ctx.fillRect(cx - size * 1.2, cy - size * 1.2, size * 2.4, size * 2.4);
 }
 
 // Stipple + decoration — the textured "look" of the biome. Caller is
