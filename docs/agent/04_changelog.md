@@ -1,5 +1,12 @@
 # 04_changelog.md
 
+## 2026-05-07 — v1.2.0 — Per-cell tile sprite cache
+- Та же оптимизация что для биомов (v1.0.0), но теперь и для тайлов. До этого 3 runtime-прохода per cell per frame: decoration в clean hex clip, glow без клипа, drawIconEnhanced (icon + drop shadow). На иконках типа `megacity` (кластер небоскрёбов), `raider` (палатка + спайк + череп), `factory` (трубы с дымом) — десятки canvas-операций per icon per frame.
+- Добавлен `src/render/tileSprite.ts` параллельно `biomeSprite.ts`. Сигнатура: `getTileSprite(tile, q, r, size)` → запекает (decoration в clean clip + glow без клипа + drawIconEnhanced) в offscreen canvas. `clearTileSpriteCache()` — инвалидация при смене hexSize.
+- Cache key: `(tileId, q, r, sizeKey)`. (q, r) обязателен — иконки tree/deadtree/ash/debris/ruin и tile decoration используют hash3(q, r, ...) для процедурных вариаций.
+- Backing store DPR-aware: `SPRITE_SCALE = max(3, ceil(DPR × 2))`. LRU 2000.
+- В `drawScene` 3 цикла свёрнуты в один `drawImage` per tile. Импорт `drawHexGlow`/`drawHexTexture`/`drawIconEnhanced` из drawHex убран из HexGridCanvas (теперь только в `tileSprite.ts`).
+
 ## 2026-05-07 — v1.1.0 — Wavy/displaced функционал удалён
 - **Удалён wavy-clip / displaced polygon целиком.** Включая `src/render/displaced.ts` (модуль удалён физически), `pointInPolygon`, `sampleInWavyPolygon`, `sampleArea`, всё safe-hex sampling, neighborMask вычисление в drawScene. Wavy создавал двунаправленную асимметрию границ → биомы выглядели «отъедающими» друг друга, что породило целую серию итераций v1.0.6–v1.0.15 (откачены через force push до v1.0.5). Подробный разбор причин — ISSUE-003 в `06_known_issues.md`.
 - **Возвращены чистые шестиугольные рёбра** + soft blob blending. Runtime `drawBiomeBlob` рисует radial gradient с alpha falloff на радиусе 1.25*size — этот «хвост» blob'а перекрывается с blob'ами соседей, давая мягкие цветовые переходы оптически (без сложного геометрического клипа).

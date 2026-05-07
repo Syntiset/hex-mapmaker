@@ -13,14 +13,12 @@ import {
 import { useMapStore } from "../store/mapStore";
 import {
   drawBiomeBlob,
-  drawHexGlow,
   drawHexStroke,
-  drawHexTexture,
-  drawIconEnhanced,
   drawRoadPaths,
   pathHex,
 } from "../render/drawHex";
 import { clearBiomeSpriteCache, getBiomeSprite } from "../render/biomeSprite";
+import { clearTileSpriteCache, getTileSprite } from "../render/tileSprite";
 
 interface PixelPt { x: number; y: number }
 
@@ -77,9 +75,10 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
     setPos({ x: hw, y: hh });
   }, [hw, hh, grid.cols, grid.rows]);
 
-  // Invalidate sprite cache when world hexSize changes.
+  // Invalidate sprite caches when world hexSize changes.
   useEffect(() => {
     clearBiomeSpriteCache();
+    clearTileSpriteCache();
   }, [grid.hexSize]);
 
   // Compute viewport in world coords, with margin equal to one hex.
@@ -341,29 +340,19 @@ export const HexGridCanvas = forwardRef<Konva.Stage, Props>(function HexGridCanv
     }
 
     // ── TILE LAYER (features on top of biome) ──
-    // Pass 5 — tile decoration overlay (e.g., raider campfire pebbles) inside clean hex clip.
-    for (const t of tiled) {
-      if (!t.tile?.decoration) continue;
-      raw.save();
-      raw.beginPath();
-      pathHex(raw, t.cx, t.cy, grid.hexSize);
-      raw.clip();
-      // Reuse drawHexTexture but it expects a TileDef-like with fill2. We
-      // call drawDecoration directly through a tile-shaped wrapper.
-      drawHexTexture(raw, t.q, t.r, t.cx, t.cy, grid.hexSize, t.tile);
-      raw.restore();
-    }
-
-    // Pass 6 — tile glow (no clip; feature halo).
+    // Cached per-cell tile sprite — bakes decoration + glow + icon (with
+    // drop shadow) into an offscreen canvas. Replaces 3 runtime passes
+    // with one drawImage. Same cache strategy as biome sprite.
     for (const t of tiled) {
       if (!t.tile) continue;
-      drawHexGlow(raw, t.cx, t.cy, grid.hexSize, t.tile);
-    }
-
-    // Pass 7 — icons.
-    for (const t of tiled) {
-      if (!t.tile || t.tile.icon === "none") continue;
-      drawIconEnhanced(raw, t.q, t.r, t.cx, t.cy, grid.hexSize, t.tile);
+      const sprite = getTileSprite(t.tile, t.q, t.r, grid.hexSize);
+      raw.drawImage(
+        sprite.canvas,
+        t.cx - sprite.half,
+        t.cy - sprite.half,
+        sprite.dim,
+        sprite.dim,
+      );
     }
 
     // Roads

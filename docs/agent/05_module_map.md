@@ -22,7 +22,8 @@
 
 ### `src/render/`
 - `noise.ts` — `valueNoise2D`, `fbm2`, `noiseVec` (2D vector field), `hash2`/`hash3`, `rand`. Детерминированный шум в мировых координатах.
-- `biomeSprite.ts` — per-cell sprite cache: `getBiomeSprite(biome, q, r, size)` запекает texture+glow+lighting в offscreen canvas (clean hex clip); `clearBiomeSpriteCache()` инвалидация. LRU 2000.
+- `biomeSprite.ts` — per-cell sprite cache для биомов: `getBiomeSprite(biome, q, r, size)` запекает texture+glow+lighting в offscreen canvas (clean hex clip); `clearBiomeSpriteCache()` инвалидация. LRU 2000.
+- `tileSprite.ts` — per-cell sprite cache для тайлов: `getTileSprite(tile, q, r, size)` запекает decoration+glow+icon (с drop shadow) в offscreen canvas; `clearTileSpriteCache()` инвалидация. LRU 2000.
 - `drawHex.ts` — нативные canvas-функции:
   - Базовые: `pathHex`, `drawHexStroke`.
   - Rich: `drawBiomeBlob` (radial gradient runtime для soft blending), `drawHexTexture` (stipple + decoration), `drawHexGlow`, `drawHexLighting`, `drawBiomeRich` (всё вместе для палитровых превью).
