@@ -16,12 +16,14 @@ import {
 import { pathDisplacedHex } from "./displaced";
 
 const SPRITE_MARGIN = 1.3; // hex extends up to size*0.18 past edge; 1.3 gives slack
-const CACHE_LIMIT = 5000;
-// Bake sprites at devicePixelRatio so HiDPI displays don't get a blurry
-// upscale when drawImage composites them onto the DPR-scaled main canvas.
-// Also gives some slack for zoom-in before pixellation kicks in.
+const CACHE_LIMIT = 2000;  // each sprite ~94×3 px² × 4B ≈ 320KB → max ~640MB worst-case; realistic ≪
+// Bake sprites at supersampled resolution so they stay crisp on:
+//  - HiDPI / Retina (DPR > 1)
+//  - Windows fractional scaling (DPR 1.25 / 1.5 — common cause of slight blur)
+//  - Modest zoom-in (factor 1.5–2× before pixellation)
+// Floor of 3× ensures clean integer-ish downsample to all common DPRs.
 const DPR = typeof window !== "undefined" ? Math.max(1, window.devicePixelRatio || 1) : 1;
-const SPRITE_SCALE = Math.max(2, Math.ceil(DPR * 1.5)); // floor 2× so 1× displays still look crisp on zoom-in
+const SPRITE_SCALE = Math.max(3, Math.ceil(DPR * 2));
 
 const cache = new Map<string, HTMLCanvasElement>();
 
