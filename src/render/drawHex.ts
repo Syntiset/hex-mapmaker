@@ -493,34 +493,175 @@ export function drawIcon(
       break;
     }
 
-    case "vault": {
-      // Big circular blast door with bolts ring + inset V
-      shadow(ctx, () => {
+    case "vault":
+    case "vault-sealed":
+    case "vault-open": {
+      // Reusable vault gear drawing helper
+      const rusted = tile.id?.includes("rusted") ?? false;
+      const drawVaultGear = (gx: number, gy: number, rot: number, scale: number) => {
+        const Rtip  = s * 0.47 * scale;
+        const Rroot = s * 0.355 * scale;
+        const Rface = s * 0.315 * scale;
+        const N = 9;
+        const tw = (Math.PI / N) * 0.43;
+        ctx.save();
+        ctx.translate(gx, gy);
+        ctx.rotate(rot);
+
+        // 1. gear ring (Rroot..Rtip) filled solid — no teeth path, just the annular ring
+        const gearGrad = ctx.createLinearGradient(-Rtip * 0.6, -Rtip * 0.7, Rtip * 0.6, Rtip * 0.7);
+        gearGrad.addColorStop(0, rusted ? "#7a3010" : "#686c56");
+        gearGrad.addColorStop(1, rusted ? "#4a1a06" : "#424638");
+        ctx.fillStyle = gearGrad;
+
+        // draw each tooth individually — gaps between teeth stay transparent
+        for (let i = 0; i < N; i++) {
+          const a = (i / N) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a - tw) * Rroot, Math.sin(a - tw) * Rroot);
+          ctx.lineTo(Math.cos(a - tw) * Rtip,  Math.sin(a - tw) * Rtip);
+          ctx.lineTo(Math.cos(a + tw) * Rtip,  Math.sin(a + tw) * Rtip);
+          ctx.lineTo(Math.cos(a + tw) * Rroot, Math.sin(a + tw) * Rroot);
+          ctx.arc(0, 0, Rroot, a + tw, a - tw, true);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        // gear ring base (Rroot filled solid under face disc area)
         ctx.beginPath();
-        ctx.arc(0, 0, s * 0.46, 0, Math.PI * 2);
-        ctx.fillStyle = "#2a3850";
+        ctx.arc(0, 0, Rroot, 0, Math.PI * 2);
         ctx.fill();
-      });
-      // outer ring
-      ctx.strokeStyle = "#15203a";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, 0, s * 0.46, 0, Math.PI * 2);
-      ctx.stroke();
-      // bolts
-      ctx.fillStyle = c2;
-      for (let i = 0; i < 8; i++) {
-        const a = (i / 8) * Math.PI * 2;
+
+        // 2. face disc
+        const faceGrad = ctx.createRadialGradient(-Rface * 0.3, -Rface * 0.35, 0, 0, 0, Rface);
+        faceGrad.addColorStop(0,   rusted ? "#3a1a08" : "#3e4030");
+        faceGrad.addColorStop(1,   rusted ? "#1a0a04" : "#1a1c10");
         ctx.beginPath();
-        ctx.arc(Math.cos(a) * s * 0.38, Math.sin(a) * s * 0.38, s * 0.04, 0, Math.PI * 2);
+        ctx.arc(0, 0, Rface, 0, Math.PI * 2);
+        ctx.fillStyle = faceGrad;
         ctx.fill();
+        ctx.strokeStyle = "#1a1c10";
+        ctx.lineWidth = s * 0.024 * scale;
+        ctx.stroke();
+
+        // 3. two groove rings on face
+        for (const rf of [0.83, 0.50]) {
+          ctx.beginPath();
+          ctx.arc(0, 0, Rface * rf, 0, Math.PI * 2);
+          ctx.strokeStyle = "#141610";
+          ctx.lineWidth = s * 0.018 * scale;
+          ctx.stroke();
+        }
+
+        // 4. 10 spokes — draw them BEFORE bolts so bolts cover ends
+        ctx.strokeStyle = "#686a54";
+        ctx.lineWidth = s * 0.046 * scale;
+        ctx.lineCap = "round";
+        for (let i = 0; i < 9; i++) {
+          const a = (i / 9) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a) * Rface * 0.21, Math.sin(a) * Rface * 0.21);
+          ctx.lineTo(Math.cos(a) * Rface * 0.82, Math.sin(a) * Rface * 0.82);
+          ctx.stroke();
+        }
+        ctx.lineCap = "butt";
+
+        // 5. bolts on outer face ring (at Rface * 0.86, at each spoke)
+        const boltR = Rface * 0.88;
+        for (let i = 0; i < 9; i++) {
+          const a = (i / 9) * Math.PI * 2;
+          const bx = Math.cos(a) * boltR, by = Math.sin(a) * boltR;
+          ctx.beginPath();
+          ctx.arc(bx, by, s * 0.028 * scale, 0, Math.PI * 2);
+          ctx.fillStyle = "#5e6050";
+          ctx.fill();
+          ctx.strokeStyle = "#141610";
+          ctx.lineWidth = s * 0.011 * scale;
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(bx - s * 0.008 * scale, by - s * 0.009 * scale, s * 0.011 * scale, 0, Math.PI * 2);
+          ctx.fillStyle = "rgba(255,255,255,0.28)";
+          ctx.fill();
+        }
+
+        // 6. hub + "V"
+        ctx.beginPath();
+        ctx.arc(0, 0, Rface * 0.28, 0, Math.PI * 2);
+        ctx.fillStyle = "#0c0e08";
+        ctx.fill();
+        ctx.strokeStyle = "#505240";
+        ctx.lineWidth = s * 0.022 * scale;
+        ctx.stroke();
+        ctx.fillStyle = c;
+        ctx.font = `bold ${(s * 0.21 * scale).toFixed(1)}px Consolas, monospace`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("V", 0, s * 0.012 * scale);
+
+        // 7. specular on face
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(0, 0, Rface, 0, Math.PI * 2);
+        ctx.clip();
+        const spec = ctx.createRadialGradient(-Rface * 0.35, -Rface * 0.4, 0, -Rface * 0.35, -Rface * 0.4, Rface * 0.6);
+        spec.addColorStop(0, "rgba(255,255,255,0.12)");
+        spec.addColorStop(1, "rgba(255,255,255,0)");
+        ctx.fillStyle = spec;
+        ctx.fillRect(-Rface, -Rface, Rface * 2, Rface * 2);
+        ctx.restore();
+
+        ctx.restore();
+      };
+
+      if (tile.icon === "vault") {
+        drawVaultGear(0, 0, 0, 1.0);
+      } else if (tile.icon === "vault-sealed") {
+        // та же шестерня, затемнённая + цепи крест-накрест
+        ctx.globalAlpha = 0.7;
+        drawVaultGear(0, 0, 0, 1.0);
+        ctx.globalAlpha = 1.0;
+        // цепи X
+        ctx.strokeStyle = c;
+        ctx.lineWidth = s * 0.07;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(-s * 0.30, -s * 0.30);
+        ctx.lineTo( s * 0.30,  s * 0.30);
+        ctx.moveTo( s * 0.30, -s * 0.30);
+        ctx.lineTo(-s * 0.30,  s * 0.30);
+        ctx.stroke();
+        // звенья цепи
+        ctx.fillStyle = "#1a1612";
+        for (let i = -3; i <= 3; i++) {
+          const t = i / 3.5;
+          ctx.beginPath();
+          ctx.arc( t * s * 0.30,  t * s * 0.30, s * 0.020, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(-t * s * 0.30,  t * s * 0.30, s * 0.020, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        // замок по центру
+        ctx.fillStyle = c;
+        ctx.fillRect(-s * 0.09, -s * 0.03, s * 0.18, s * 0.14);
+        ctx.strokeStyle = c;
+        ctx.lineWidth = s * 0.038;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.arc(0, -s * 0.03, s * 0.065, Math.PI, 0);
+        ctx.stroke();
+      } else {
+        // vault-open: туннель слева + шестерня отъехала вправо
+        ctx.save();
+        ctx.shadowColor = "rgba(0,0,0,0.8)";
+        ctx.shadowBlur = s * 0.18;
+        ctx.beginPath();
+        ctx.arc(-s * 0.08, 0, s * 0.30, 0, Math.PI * 2);
+        ctx.fillStyle = "#0a0c0a";
+        ctx.fill();
+        ctx.restore();
+        drawVaultGear(s * 0.16, -s * 0.04, Math.PI / 12, 0.82);
       }
-      // V emblem
-      ctx.fillStyle = c;
-      ctx.font = `bold ${s * 0.55}px Consolas, monospace`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("V", 0, s * 0.04);
       break;
     }
 
@@ -1384,105 +1525,6 @@ export function drawIcon(
       break;
     }
 
-    case "vault-sealed": {
-      // Vault gear with a chain X across — locked
-      shadow(ctx, () => {
-        ctx.beginPath();
-        ctx.arc(0, 0, s * 0.46, 0, Math.PI * 2);
-        ctx.fillStyle = "#262e3e";
-        ctx.fill();
-      });
-      ctx.strokeStyle = "#0e151f";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, 0, s * 0.46, 0, Math.PI * 2);
-      ctx.stroke();
-      // dimmed bolts
-      ctx.fillStyle = c2 ?? "#888";
-      for (let i = 0; i < 8; i++) {
-        const a = (i / 8) * Math.PI * 2;
-        ctx.beginPath();
-        ctx.arc(Math.cos(a) * s * 0.38, Math.sin(a) * s * 0.38, s * 0.04, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      // X-cross of heavy chain
-      ctx.strokeStyle = c;
-      ctx.lineWidth = s * 0.08;
-      ctx.lineCap = "round";
-      ctx.beginPath();
-      ctx.moveTo(-s * 0.34, -s * 0.34);
-      ctx.lineTo(s * 0.34, s * 0.34);
-      ctx.moveTo(s * 0.34, -s * 0.34);
-      ctx.lineTo(-s * 0.34, s * 0.34);
-      ctx.stroke();
-      // chain link dots
-      ctx.fillStyle = "#1a1612";
-      for (let i = -3; i <= 3; i++) {
-        const t = i / 3;
-        ctx.beginPath();
-        ctx.arc(t * s * 0.34, t * s * 0.34, s * 0.022, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.arc(-t * s * 0.34, t * s * 0.34, s * 0.022, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      // padlock at center
-      ctx.fillStyle = c;
-      ctx.fillRect(-s * 0.10, -s * 0.04, s * 0.20, s * 0.16);
-      ctx.strokeStyle = c;
-      ctx.lineWidth = s * 0.04;
-      ctx.beginPath();
-      ctx.arc(0, -s * 0.04, s * 0.07, Math.PI, 0);
-      ctx.stroke();
-      break;
-    }
-
-    case "vault-open": {
-      // Vault rolled-open — bright opening, gear pushed aside to the right
-      const grad = ctx.createRadialGradient(0, 0, 0, 0, 0, s * 0.46);
-      grad.addColorStop(0, "#f0f4ff");
-      grad.addColorStop(0.4, "#80b8d8");
-      grad.addColorStop(1, "#1c2840");
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(0, 0, s * 0.46, 0, Math.PI * 2);
-      ctx.fill();
-      // outer rim
-      ctx.strokeStyle = "#15203a";
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.arc(0, 0, s * 0.46, 0, Math.PI * 2);
-      ctx.stroke();
-      // gear rolled aside (right)
-      shadow(ctx, () => {
-        ctx.fillStyle = "#3a4658";
-        ctx.beginPath();
-        ctx.arc(s * 0.42, s * 0.04, s * 0.34, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      // bolts on rolled gear
-      ctx.fillStyle = c2 ?? "#dddddd";
-      for (let i = 0; i < 7; i++) {
-        const a = (i / 7) * Math.PI * 2;
-        ctx.beginPath();
-        ctx.arc(s * 0.42 + Math.cos(a) * s * 0.28, s * 0.04 + Math.sin(a) * s * 0.28, s * 0.035, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      // V emblem on rolled gear
-      ctx.fillStyle = c;
-      ctx.font = `bold ${s * 0.32}px Consolas, monospace`;
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText("V", s * 0.42, s * 0.06);
-      // floor lights inside opening
-      ctx.fillStyle = "rgba(255,255,255,0.7)";
-      for (let i = 0; i < 4; i++) {
-        ctx.beginPath();
-        ctx.arc(-s * 0.30 + i * s * 0.10, s * 0.02, s * 0.018, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      break;
-    }
 
     case "bos-outpost": {
       // Military comms outpost — small bunker + tall mast with dish

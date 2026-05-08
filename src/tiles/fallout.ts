@@ -272,6 +272,18 @@ export const FALLOUT_TILES: TileDef[] = [
     glow: { color: "#80b8d8", alpha: 0.18, radius: 1.0 },
   },
   {
+    id: "vault-rusted", name: "Убежище (ржав.)",
+    icon: "vault", iconColor: "#c04a0a", iconColor2: "#8a3808",
+  },
+  {
+    id: "vault-sealed-rusted", name: "Запеч. убежище (ржав.)",
+    icon: "vault-sealed", iconColor: "#a83a08", iconColor2: "#7a2e06",
+  },
+  {
+    id: "vault-open-rusted", name: "Откр. убежище (ржав.)",
+    icon: "vault-open", iconColor: "#c04a0a", iconColor2: "#8a3808",
+  },
+  {
     id: "bunker", name: "Бункер БС",
     icon: "bunker", iconColor: "#b89438", iconColor2: "#1a1a18",
     glow: { color: "#506a7c", alpha: 0.06, radius: 0.75 },
@@ -333,7 +345,7 @@ export const FALLOUT_TILE_CATEGORIES: TileCategory[] = [
   {
     id: "shelter",
     name: "Убежища",
-    tileIds: ["vault", "vault-sealed", "vault-open", "bunker", "bos-outpost", "enclave-base"],
+    tileIds: ["vault", "vault-sealed", "vault-open", "vault-rusted", "vault-sealed-rusted", "vault-open-rusted", "bunker", "bos-outpost", "enclave-base"],
   },
 ];
 
