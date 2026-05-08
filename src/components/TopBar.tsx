@@ -8,7 +8,6 @@ import { listRecents, pushRecent, type RecentEntry } from "../io/recents";
 
 interface Props {
   stageRef: React.RefObject<Konva.Stage | null>;
-  onOpenHelp: () => void;
 }
 
 function formatDate(ms: number): string {
@@ -17,7 +16,7 @@ function formatDate(ms: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function TopBar({ stageRef, onOpenHelp }: Props) {
+export function TopBar({ stageRef }: Props) {
   const grid = useMapStore((s) => s.grid);
   const cells = useMapStore((s) => s.cells);
   const roadPaths = useMapStore((s) => s.roadPaths);
@@ -135,9 +134,6 @@ export function TopBar({ stageRef, onOpenHelp }: Props) {
       <div className="group">
         <button onClick={undo} title="Ctrl+Z">↶ Отмена</button>
         <button onClick={redo} title="Ctrl+Y">↷ Повтор</button>
-      </div>
-      <div className="group">
-        <button onClick={onOpenHelp} title="Управление и горячие клавиши">? Помощь</button>
       </div>
     </div>
   );

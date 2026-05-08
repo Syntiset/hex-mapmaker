@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 import type Konva from "konva";
 import { TopBar } from "./components/TopBar";
 import { Toolbar } from "./components/Toolbar";
@@ -16,6 +17,10 @@ export default function App() {
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [hoverKey, setHoverKey] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.innerWidth >= 900;
+  });
   const grid = useMapStore((s) => s.grid);
   const [view, setView] = useState<ViewState>(() => ({
     scale: 1,
@@ -67,65 +72,34 @@ export default function App() {
     return () => window.removeEventListener("resize", update);
   }, []);
 
+  useHotkeys("ctrl+z, meta+z", (e) => { e.preventDefault(); undo(); }, { preventDefault: true });
+  useHotkeys("ctrl+y, meta+y, ctrl+shift+z, meta+shift+z", (e) => { e.preventDefault(); redo(); }, { preventDefault: true });
+  useHotkeys("b", () => setPaintMode("biome"));
+  useHotkeys("t", () => setPaintMode("tile"));
+  useHotkeys("r", () => setTool("road"));
+  useHotkeys("e", () => setTool("erase"));
+  useHotkeys("l", () => setTool("label"));
+  useHotkeys("space", (e) => { e.preventDefault(); setSpacePan(true); }, { keydown: true, preventDefault: true });
+  useHotkeys("space", () => setSpacePan(false), { keyup: true });
+
   useEffect(() => {
-    function isTextTarget(t: EventTarget | null) {
-      const el = t as HTMLElement | null;
-      return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
-    }
-
-    function onKeyDown(e: KeyboardEvent) {
-      if (isTextTarget(e.target)) return;
-
-      if (e.ctrlKey || e.metaKey) {
-        const k = e.key.toLowerCase();
-        if (k === "z" && !e.shiftKey) { e.preventDefault(); undo(); return; }
-        if (k === "y" || (k === "z" && e.shiftKey)) { e.preventDefault(); redo(); return; }
-        return;
-      }
-
-      // Space (hold) → pan override; do NOT change stored tool — release returns
-      // user to whatever they were doing without store mutations.
-      if (e.code === "Space") {
-        if (!e.repeat) setSpacePan(true);
-        e.preventDefault();
-        return;
-      }
-
-      const k = e.key.toLowerCase();
-      switch (k) {
-        case "b": setPaintMode("biome"); break;  // mode only, keep current tool
-        case "t": setPaintMode("tile");  break;
-        case "r": setTool("road"); break;
-        case "e": setTool("erase"); break;
-        case "l": setTool("label"); break;
-        default: return;
-      }
-    }
-
-    function onKeyUp(e: KeyboardEvent) {
-      if (e.code === "Space") {
-        e.preventDefault();
-        setSpacePan(false);
-      }
-    }
-
-    function onBlur() { setSpacePan(false); }
-
-    window.addEventListener("keydown", onKeyDown);
-    window.addEventListener("keyup", onKeyUp);
+    const onBlur = () => setSpacePan(false);
     window.addEventListener("blur", onBlur);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      window.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", onBlur);
-    };
-  }, [undo, redo, setTool, setPaintMode]);
+    return () => window.removeEventListener("blur", onBlur);
+  }, []);
 
   return (
     <div className="app">
-      <TopBar stageRef={stageRef} onOpenHelp={() => setHelpOpen(true)} />
-      <div className="main">
-        <aside className="left">
+      <TopBar stageRef={stageRef} />
+      <div className={sidebarOpen ? "main" : "main sidebar-closed"}>
+        <button
+          className="sidebar-toggle"
+          onClick={() => setSidebarOpen((o) => !o)}
+          title={sidebarOpen ? "Скрыть панель" : "Показать панель"}
+        >
+          {sidebarOpen ? "◀" : "▶"}
+        </button>
+        <aside className={sidebarOpen ? "left" : "left collapsed"}>
           <Toolbar />
           <TilePalette />
         </aside>

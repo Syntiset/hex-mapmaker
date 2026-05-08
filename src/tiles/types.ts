@@ -89,6 +89,10 @@ export interface BiomeDef {
   stroke: string;
   glow?: GlowDef;
   decoration?: DecorationDef;
+  // Сила процедурного noise-overlay'я (0..1). Default 0.4. Для тёмных/насыщенных
+  // биомов (ash, swamp, burned-forest и т.п.) стоит понижать до 0.2-0.25,
+  // иначе noise читается как пузыри/кляксы вместо текстуры поверхности.
+  noiseStrength?: number;
 }
 
 // TileDef: a feature placed on top of a biome. No fill colors — biome

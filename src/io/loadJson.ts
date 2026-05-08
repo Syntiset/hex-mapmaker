@@ -1,7 +1,27 @@
+import { z } from "zod";
 import type { SavedMap } from "./saveJson";
 import type { Cell, RoadPath } from "../store/mapStore";
 import type { BiomeId } from "../tiles/types";
 import { axialToPixel } from "../hex/hex";
+
+// Минимальный envelope: проверяем то, без чего загрузка не имеет смысла —
+// version, grid, cells. Всё остальное (тайлы, биомы) валидируется лениво
+// миграциями и в самом сторе.
+const RawMapSchema = z.object({
+  version: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+  setting: z.string().optional().default("fallout"),
+  grid: z.object({
+    cols: z.number().int().positive(),
+    rows: z.number().int().positive(),
+    hexSize: z.number().positive(),
+  }),
+  cells: z.record(z.string(), z.object({
+    tileId: z.string().optional(),
+    biomeId: z.string().optional(),
+    label: z.string().optional(),
+  }).passthrough()),
+  roadPaths: z.array(z.unknown()).optional(),
+});
 
 // v1 stored roads as { keys: string[] } of axial coords. Migrate to pixel points.
 interface LegacyRoadV1 {
@@ -80,25 +100,20 @@ function migrateCellsV2ToV3(cellsV2: Record<string, CellV2>): Record<string, Cel
   return out;
 }
 
-interface RawMap {
-  version: number;
-  setting: string;
-  grid: SavedMap["grid"];
-  cells: Record<string, CellV2>;
-  roadPaths?: unknown;
+function formatZodError(err: z.ZodError): string {
+  const first = err.issues[0];
+  if (!first) return "Некорректный формат файла карты";
+  const path = first.path.join(".") || "(root)";
+  return `Некорректный формат: ${path} — ${first.message}`;
 }
 
-export async function loadJsonFile(file: File): Promise<SavedMap> {
-  const text = await file.text();
-  const data = JSON.parse(text) as RawMap;
-  if (data.version !== 1 && data.version !== 2 && data.version !== 3) {
-    throw new Error(`Неподдерживаемая версия карты: ${data.version}`);
+export function parseMapJson(raw: unknown): SavedMap {
+  const parsed = RawMapSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new Error(formatZodError(parsed.error));
   }
-  if (!data.grid || !data.cells) {
-    throw new Error("Некорректный формат файла карты");
-  }
+  const data = parsed.data;
 
-  // v1 → v2 (roads only): tileId in cells stays the same shape.
   let roadPaths: RoadPath[];
   if (data.version === 1) {
     roadPaths = migrateRoadsV1ToV2((data.roadPaths ?? []) as LegacyRoadV1[], data.grid.hexSize);
@@ -106,7 +121,6 @@ export async function loadJsonFile(file: File): Promise<SavedMap> {
     roadPaths = (data.roadPaths ?? []) as RoadPath[];
   }
 
-  // v1/v2 → v3: cells split into biomes + tiles.
   let cells: Record<string, Cell>;
   if (data.version === 3) {
     cells = data.cells as Record<string, Cell>;
@@ -121,4 +135,15 @@ export async function loadJsonFile(file: File): Promise<SavedMap> {
     cells,
     roadPaths,
   };
+}
+
+export async function loadJsonFile(file: File): Promise<SavedMap> {
+  const text = await file.text();
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    throw new Error("Файл не является валидным JSON");
+  }
+  return parseMapJson(raw);
 }

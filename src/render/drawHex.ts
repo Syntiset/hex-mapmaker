@@ -567,11 +567,33 @@ export function drawIcon(
           count = 6; scale = 1.0;
       }
 
+      // Hex containment: filter out trees whose silhouette would clip through
+      // the hex edges. `size` here is hexSize*iconScale; recover real hexSize.
+      const realHexSize = size / (tile.iconScale ?? 1);
+      const apothem = realHexSize * SQRT3_OVER_2;
+      const treeFits = (x: number, y: number, h: number): boolean => {
+        const xmin = x - h * 0.32;
+        const xmax = x + h * 0.32;
+        const ymin = y - h * 0.4;
+        const ymax = y + h * 0.7;
+        // All four bounding-box corners must lie inside the hex.
+        return (
+          dotFitsInHex(xmin, ymin, 0, apothem) &&
+          dotFitsInHex(xmax, ymin, 0, apothem) &&
+          dotFitsInHex(xmin, ymax, 0, apothem) &&
+          dotFitsInHex(xmax, ymax, 0, apothem)
+        );
+      };
+
       const trees = [];
-      for (let i = 0; i < count; i++) {
+      // Try up to 3× the requested count to compensate for skipped positions
+      // near the edges; stop once we have `count` trees inside the hex.
+      const maxAttempts = count * 3;
+      for (let i = 0; i < maxAttempts && trees.length < count; i++) {
         const x = count === 1 ? 0 : (rand(seed, i) - 0.5) * s * spread;
         const y = count === 1 ? 0 : (rand(seed, i + 50) - 0.4) * s * ySpread;
         const h = s * (0.32 + rand(seed, i + 100) * 0.18) * scale;
+        if (!treeFits(x, y, h)) continue;
         trees.push({ x, y, h });
       }
       trees.sort((a, b) => a.y - b.y);
