@@ -189,9 +189,14 @@ function askClaude(prompt) {
     child.on("close", (code) => {
       clearInterval(thinkingInterval);
       if (code !== 0) {
-        resolve(
-          `⚠ claude exit ${code}\n${(stderr || stdout).slice(0, 1500)}`,
-        );
+        const errText = (stderr || stdout).slice(0, 1500);
+        // 403 = DPAPI ещё не разблокирован (сервис стартовал до входа юзера).
+        // Возвращаем специальный маркер — caller сделает retry.
+        if (errText.includes("403") || errText.includes("forbidden")) {
+          resolve("__RETRY_403__");
+        } else {
+          resolve(`⚠ claude exit ${code}\n${errText}`);
+        }
       } else {
         // Успех — сессия точно есть, на следующих запросах используем --resume.
         if (!sessionCreated) {
@@ -218,22 +223,69 @@ async function loop() {
       console.log(`skipped ${fresh.result.length} queued updates`);
     }
   } catch {}
-  await sendChunked("✓ TG bridge запущен. Пиши, я слушаю.");
+  // Уведомление о старте — в фоне, не блокирует polling
+  (async () => {
+    for (let i = 0; ; i++) {
+      try {
+        await tgCall("sendMessage", { chat_id: CHAT_ID, text: "✓ TG bridge запущен. Пиши, я слушаю.", disable_web_page_preview: true }, 8000);
+        console.log("start notify sent OK");
+        break;
+      } catch (e) {
+        console.log(`start notify attempt ${i + 1} failed: ${e.message}, retry in 15s`);
+        await new Promise((r) => setTimeout(r, 15000));
+      }
+    }
+  })();
   while (true) {
     try {
       const res = await tgCall("getUpdates", { offset, timeout: 25 }, 30000);
       if (res?.ok && Array.isArray(res.result)) {
+        // Группируем медиа-альбомы по media_group_id
+        const mediaGroups = new Map(); // group_id -> { msgs, caption }
+        const orderedItems = []; // { type: 'msg'|'group', data }
+
         for (const upd of res.result) {
           offset = upd.update_id + 1;
           writeFileSync(offsetPath, String(offset));
           const msg = upd.message;
           if (!msg) continue;
-          if (String(msg.chat?.id) !== String(CHAT_ID)) {
-            console.log("skip foreign chat", msg.chat?.id);
-            continue;
-          }
+          if (String(msg.chat?.id) !== String(CHAT_ID)) continue;
 
+          if (msg.media_group_id && (msg.photo || msg.document)) {
+            if (!mediaGroups.has(msg.media_group_id)) {
+              mediaGroups.set(msg.media_group_id, { msgs: [], caption: msg.caption || "" });
+              orderedItems.push({ type: "group", groupId: msg.media_group_id });
+            }
+            mediaGroups.get(msg.media_group_id).msgs.push(msg);
+            if (msg.caption) mediaGroups.get(msg.media_group_id).caption = msg.caption;
+          } else {
+            orderedItems.push({ type: "msg", msg });
+          }
+        }
+
+        for (const item of orderedItems) {
           let text = "";
+
+          if (item.type === "group") {
+            const group = mediaGroups.get(item.groupId);
+            const paths = [];
+            for (const msg of group.msgs) {
+              try {
+                const fileId = msg.photo
+                  ? msg.photo[msg.photo.length - 1].file_id
+                  : msg.document.file_id;
+                const localPath = await downloadTgFile(fileId);
+                paths.push(localPath);
+              } catch (e) {
+                await sendChunked(`⚠ Не удалось скачать файл из альбома: ${e.message}`);
+              }
+            }
+            if (!paths.length) continue;
+            const caption = group.caption ? `\n${group.caption}` : "";
+            text = paths.map(p => `[файл сохранён: ${p}]`).join("\n") + caption;
+          } else {
+          const msg = item.msg;
+
           // Голосовое — транскрибируем через Whisper
           if (msg.voice) {
             const fileId = msg.voice.file_id;
@@ -284,13 +336,22 @@ async function loop() {
           } else {
             continue;
           }
+          } // end else (single message)
+          if (!text.trim()) continue;
           console.log(`[user] ${text.slice(0, 120)}`);
           // Минимальный ack — чтобы видно было что бот не лёг
           await tgCall("sendChatAction", {
             chat_id: CHAT_ID,
             action: "typing",
           }).catch(() => {});
-          const reply = await askClaude(text);
+          let reply = await askClaude(text);
+          // Retry если DPAPI ещё не разблокирован (403 при старте до логина юзера)
+          for (let attempt = 0; reply === "__RETRY_403__" && attempt < 10; attempt++) {
+            console.log(`403 retry ${attempt + 1}/10 — жду 30s`);
+            await new Promise((r) => setTimeout(r, 30000));
+            reply = await askClaude(text);
+          }
+          if (reply === "__RETRY_403__") reply = "⚠ Не удалось аутентифицироваться после перезагрузки. Войди в систему и попробуй снова.";
           console.log(`[claude] ${reply.slice(0, 120)}`);
           await sendChunked(reply);
         }
