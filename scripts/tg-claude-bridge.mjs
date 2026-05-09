@@ -179,9 +179,15 @@ function askClaude(prompt) {
     child.stdin.end();
     let stdout = "";
     let stderr = "";
+    // Шлём "думаю..." каждые 30 секунд пока claude не ответил
+    const thinkingInterval = setInterval(() => {
+      tgCall("sendChatAction", { chat_id: CHAT_ID, action: "typing" }).catch(() => {});
+      tgCall("sendMessage", { chat_id: CHAT_ID, text: "⏳ думаю...", disable_web_page_preview: true }).catch(() => {});
+    }, 30000);
     child.stdout.on("data", (c) => (stdout += c));
     child.stderr.on("data", (c) => (stderr += c));
     child.on("close", (code) => {
+      clearInterval(thinkingInterval);
       if (code !== 0) {
         resolve(
           `⚠ claude exit ${code}\n${(stderr || stdout).slice(0, 1500)}`,
@@ -197,12 +203,21 @@ function askClaude(prompt) {
         resolve(stdout.trim() || "(пустой ответ)");
       }
     });
-    child.on("error", (e) => resolve(`⚠ spawn error: ${e.message}`));
+    child.on("error", (e) => { clearInterval(thinkingInterval); resolve(`⚠ spawn error: ${e.message}`); });
   });
 }
 
 async function loop() {
   console.log(`✓ TG bridge started. session=${SESSION}. polling…`);
+  // Сдвигаем offset до последнего апдейта чтобы не досылать накопленные сообщения
+  try {
+    const fresh = await tgCall("getUpdates", { offset, timeout: 0 }, 5000);
+    if (fresh?.ok && fresh.result.length > 0) {
+      offset = fresh.result[fresh.result.length - 1].update_id + 1;
+      writeFileSync(offsetPath, String(offset));
+      console.log(`skipped ${fresh.result.length} queued updates`);
+    }
+  } catch {}
   await sendChunked("✓ TG bridge запущен. Пиши, я слушаю.");
   while (true) {
     try {
