@@ -116,12 +116,13 @@ async function sendChunked(text) {
   }
 }
 
-async function downloadTgFile(fileId) {
+async function downloadTgFile(fileId, idx = null) {
   const info = await tgCall("getFile", { file_id: fileId });
   if (!info?.ok) throw new Error("getFile failed");
   const filePath = info.result.file_path;
   const ext = extname(filePath) || ".bin";
-  const localName = `tg_${fileId.slice(-8)}${ext}`;
+  const suffix = idx !== null ? `_${idx}` : "";
+  const localName = `tg_${fileId.slice(-8)}${suffix}${ext}`;
   const localPath = join(TMP_DIR, localName);
   await new Promise((resolve, reject) => {
     const url = `https://api.telegram.org/file/bot${TOKEN}/${filePath}`;
@@ -236,14 +237,45 @@ async function loop() {
       }
     }
   })();
+  // Буфер медиагрупп — живёт между вызовами getUpdates
+  const mediaGroupBuf = new Map(); // group_id -> { msgs, caption, timer }
+
+  async function flushMediaGroup(groupId) {
+    const group = mediaGroupBuf.get(groupId);
+    if (!group) return;
+    mediaGroupBuf.delete(groupId);
+    const paths = [];
+    for (let i = 0; i < group.msgs.length; i++) {
+      const msg = group.msgs[i];
+      try {
+        const fileId = msg.photo
+          ? msg.photo[msg.photo.length - 1].file_id
+          : msg.document.file_id;
+        const localPath = await downloadTgFile(fileId, i);
+        paths.push(localPath);
+      } catch (e) {
+        await sendChunked(`⚠ Не удалось скачать файл из альбома: ${e.message}`);
+      }
+    }
+    if (!paths.length) return;
+    const caption = group.caption ? `\n${group.caption}` : "";
+    const text = paths.map(p => `[файл сохранён: ${p}]`).join("\n") + caption;
+    console.log(`[user] album(${paths.length}): ${text.slice(0, 120)}`);
+    await tgCall("sendChatAction", { chat_id: CHAT_ID, action: "typing" }).catch(() => {});
+    let reply = await askClaude(text);
+    for (let attempt = 0; reply === "__RETRY_403__" && attempt < 10; attempt++) {
+      await new Promise((r) => setTimeout(r, 30000));
+      reply = await askClaude(text);
+    }
+    if (reply === "__RETRY_403__") reply = "⚠ Не удалось аутентифицироваться после перезагрузки. Войди в систему и попробуй снова.";
+    console.log(`[claude] ${reply.slice(0, 120)}`);
+    await sendChunked(reply);
+  }
+
   while (true) {
     try {
       const res = await tgCall("getUpdates", { offset, timeout: 25 }, 30000);
       if (res?.ok && Array.isArray(res.result)) {
-        // Группируем медиа-альбомы по media_group_id
-        const mediaGroups = new Map(); // group_id -> { msgs, caption }
-        const orderedItems = []; // { type: 'msg'|'group', data }
-
         for (const upd of res.result) {
           offset = upd.update_id + 1;
           writeFileSync(offsetPath, String(offset));
@@ -252,39 +284,23 @@ async function loop() {
           if (String(msg.chat?.id) !== String(CHAT_ID)) continue;
 
           if (msg.media_group_id && (msg.photo || msg.document)) {
-            if (!mediaGroups.has(msg.media_group_id)) {
-              mediaGroups.set(msg.media_group_id, { msgs: [], caption: msg.caption || "" });
-              orderedItems.push({ type: "group", groupId: msg.media_group_id });
+            // Накапливаем в буфер, сбрасываем таймер
+            if (!mediaGroupBuf.has(msg.media_group_id)) {
+              mediaGroupBuf.set(msg.media_group_id, { msgs: [], caption: "" });
             }
-            mediaGroups.get(msg.media_group_id).msgs.push(msg);
-            if (msg.caption) mediaGroups.get(msg.media_group_id).caption = msg.caption;
-          } else {
-            orderedItems.push({ type: "msg", msg });
+            const group = mediaGroupBuf.get(msg.media_group_id);
+            group.msgs.push(msg);
+            if (msg.caption) group.caption = msg.caption;
+            const dbgId = msg.photo ? msg.photo[msg.photo.length-1].file_id : msg.document?.file_id;
+            console.log(`[album] group=${msg.media_group_id} count=${group.msgs.length} file_id=${dbgId}`);
+            // Сбросить предыдущий таймер и поставить новый на 5с
+            if (group.timer) clearTimeout(group.timer);
+            group.timer = setTimeout(() => flushMediaGroup(msg.media_group_id), 5000);
+            continue;
           }
-        }
 
-        for (const item of orderedItems) {
-          let text = "";
-
-          if (item.type === "group") {
-            const group = mediaGroups.get(item.groupId);
-            const paths = [];
-            for (const msg of group.msgs) {
-              try {
-                const fileId = msg.photo
-                  ? msg.photo[msg.photo.length - 1].file_id
-                  : msg.document.file_id;
-                const localPath = await downloadTgFile(fileId);
-                paths.push(localPath);
-              } catch (e) {
-                await sendChunked(`⚠ Не удалось скачать файл из альбома: ${e.message}`);
-              }
-            }
-            if (!paths.length) continue;
-            const caption = group.caption ? `\n${group.caption}` : "";
-            text = paths.map(p => `[файл сохранён: ${p}]`).join("\n") + caption;
-          } else {
-          const msg = item.msg;
+          // single message scope
+          let text = ""; {
 
           // Голосовое — транскрибируем через Whisper
           if (msg.voice) {
