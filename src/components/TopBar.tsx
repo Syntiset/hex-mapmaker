@@ -90,34 +90,24 @@ export function TopBar({ stageRef }: Props) {
 
   return (
     <div className="topbar">
-      <span className="brand">⚙ Hex Map Maker — Fallout</span>
-      <div className="group">
-        <label>
-          Колонок:&nbsp;
-          <input type="number" min={1} max={200} value={cols} onChange={(e) => setCols(+e.target.value)} />
-        </label>
-        <label>
-          Строк:&nbsp;
-          <input type="number" min={1} max={200} value={rows} onChange={(e) => setRows(+e.target.value)} />
-        </label>
-        <button onClick={handleNew}>Новая</button>
+      <div className="topbar-brand">
+        <span className="brand">⚙ Hex Map Maker</span>
       </div>
-      <div className="group">
-        <button onClick={() => fileInput.current?.click()}>Открыть JSON</button>
-        <input
-          ref={fileInput}
-          type="file"
-          accept="application/json,.json"
-          style={{ display: "none" }}
-          onChange={handleOpen}
-        />
+
+      <div className="topbar-zone">
+        <label>Кол:&nbsp;<input type="number" min={1} max={200} value={cols} onChange={(e) => setCols(+e.target.value)} /></label>
+        <label>Стр:&nbsp;<input type="number" min={1} max={200} value={rows} onChange={(e) => setRows(+e.target.value)} /></label>
+        <button className="btn-sm" onClick={handleNew}>Новая</button>
+      </div>
+
+      <div className="topbar-zone">
+        <button className="btn-sm" onClick={() => fileInput.current?.click()}>Открыть</button>
+        <input ref={fileInput} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={handleOpen} />
         <div ref={recentRef} className={recentOpen ? "recent-menu open" : "recent-menu"}>
-          <button title="Последние открытые/сохранённые карты" onClick={() => setRecentOpen((o) => !o)}>
-            Недавние ▾
-          </button>
+          <button className="btn-sm" onClick={() => setRecentOpen((o) => !o)}>Недавние ▾</button>
           <div className="recent-list">
             {recents.length === 0 ? (
-              <div className="empty">Пусто. Сохрани или открой карту, чтобы появилась здесь.</div>
+              <div className="empty">Пусто. Сохрани или открой карту.</div>
             ) : (
               recents.map((r) => (
                 <button key={r.name + r.savedAt} onClick={() => handleOpenRecent(r)}>
@@ -128,12 +118,13 @@ export function TopBar({ stageRef }: Props) {
             )}
           </div>
         </div>
-        <button onClick={handleSave}>Сохранить JSON</button>
-        <button onClick={handleExport}>Экспорт PNG</button>
+        <button className="btn-sm" onClick={handleSave}>Сохранить</button>
+        <button className="btn-sm" onClick={handleExport}>Экспорт PNG</button>
       </div>
-      <div className="group">
-        <button onClick={undo} title="Ctrl+Z">↶ Отмена</button>
-        <button onClick={redo} title="Ctrl+Y">↷ Повтор</button>
+
+      <div className="topbar-zone" style={{ marginLeft: "auto", borderRight: "none" }}>
+        <button className="btn-sm" onClick={undo} title="Ctrl+Z">↶ Отмена</button>
+        <button className="btn-sm" onClick={redo} title="Ctrl+Y">↷ Повтор</button>
       </div>
     </div>
   );

@@ -145,7 +145,7 @@ export function TilePalette() {
 
   return (
     <div className="palette">
-      <h3>Биомы</h3>
+      <div className="palette-section-header">Биомы</div>
       <div className="palette-grid">
         {biomes.map((b) => (
           <button
@@ -173,10 +173,8 @@ export function TilePalette() {
         ))}
       </div>
 
-      <h3 style={{ marginTop: 14 }}>Тайлы</h3>
-      <div className="palette-hint" title="Превью показывает тайл поверх активного биома">
-        Поверх: {activeBiome.name}
-      </div>
+      <div className="palette-section-header">Тайлы</div>
+      <div className="palette-hint">Поверх: {activeBiome.name}</div>
       <div className="palette-categories">
         <button
           className={category === "all" ? "active" : ""}

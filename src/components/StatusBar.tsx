@@ -14,12 +14,12 @@ export function StatusBar({ hoverKey, onOpenHelp }: Props) {
 
   return (
     <div className="statusbar">
-      <span>Инструмент: <b>{tool}</b></span>
-      <span>Гекс: {hoverKey ?? "—"}</span>
-      <span>Тайл: {tile?.name ?? "пусто"}</span>
-      {cell?.label && <span>Подпись: «{cell.label}»</span>}
-      <span className="hint">B/T режим · R дорога · E ластик · L подпись · Space-hold pan · Ctrl+Z/Y</span>
-      <button className="status-help" onClick={onOpenHelp} title="Управление и горячие клавиши">? Помощь</button>
+      <span className="statusbar-item tool-indicator">✦ <b>{tool}</b></span>
+      <span className="statusbar-item">Гекс: <b>{hoverKey ?? "—"}</b></span>
+      <span className="statusbar-item">Тайл: <b>{tile?.name ?? "—"}</b></span>
+      {cell?.label && <span className="statusbar-item">«{cell.label}»</span>}
+      <span className="statusbar-hint">B/T режим · R дорога · E ластик · L подпись · Space pan · Ctrl+Z/Y</span>
+      <button className="status-help" onClick={onOpenHelp}>? Помощь</button>
     </div>
   );
 }

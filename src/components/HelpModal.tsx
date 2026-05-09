@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useThemeStore, type AppTheme } from "../store/themeStore";
 
 interface Props {
   open: boolean;
@@ -11,7 +12,7 @@ function isCoarsePointer(): boolean {
     && window.matchMedia("(pointer: coarse)").matches;
 }
 
-type Tab = "desktop" | "touch";
+type Tab = "desktop" | "touch" | "themes";
 
 export function HelpModal({ open, onClose }: Props) {
   const [tab, setTab] = useState<Tab>(() => (isCoarsePointer() ? "touch" : "desktop"));
@@ -35,17 +36,14 @@ export function HelpModal({ open, onClose }: Props) {
           <button className="modal-close" onClick={onClose} title="Закрыть (Esc)">×</button>
         </div>
         <div className="modal-tabs">
-          <button
-            className={tab === "desktop" ? "active" : ""}
-            onClick={() => setTab("desktop")}
-          >🖥 ПК / мышь</button>
-          <button
-            className={tab === "touch" ? "active" : ""}
-            onClick={() => setTab("touch")}
-          >📱 Тач / планшет</button>
+          <button className={tab === "desktop" ? "active" : ""} onClick={() => setTab("desktop")}>🖥 ПК / мышь</button>
+          <button className={tab === "touch"   ? "active" : ""} onClick={() => setTab("touch")}>📱 Тач / планшет</button>
+          <button className={tab === "themes"  ? "active" : ""} onClick={() => setTab("themes")}>🎨 Темы</button>
         </div>
         <div className="modal-body">
-          {tab === "desktop" ? <DesktopHelp /> : <TouchHelp />}
+          {tab === "desktop" && <DesktopHelp />}
+          {tab === "touch"   && <TouchHelp />}
+          {tab === "themes"  && <ThemesTab />}
         </div>
       </div>
     </div>
@@ -112,6 +110,66 @@ function TouchHelp() {
       <h3>Если что-то идёт криво</h3>
       <div className="help-note">
         Тач-устройства различаются: какие-то жесты могут конфликтовать с системными (свайп от края, scroll). Если карта «не двигается» — попробуй инструмент «✋ Перенос» из тулбара. Если что-то стало стираться невпопад — Ctrl+Z аналогами не доберёшься, но кнопка «↶ Отмена» в TopBar работает.
+      </div>
+    </>
+  );
+}
+
+const THEMES: { id: AppTheme; label: string; desc: string; preview: [string, string, string] }[] = [
+  {
+    id: "default",
+    label: "Стандартная",
+    desc: "Тёмный военный стиль. Зелёный акцент.",
+    preview: ["#0e0e0a", "#1c1c14", "#6fdc4a"],
+  },
+  {
+    id: "night",
+    label: "Ночная",
+    desc: "Глубокий синий. Меньше контраста — для игры в темноте.",
+    preview: ["#06080f", "#0e1120", "#5aaae8"],
+  },
+  {
+    id: "fallout",
+    label: "Fallout",
+    desc: "CRT-зелень, scanlines, ржавые границы.",
+    preview: ["#080c06", "#141a0e", "#7ae040"],
+  },
+];
+
+function ThemesTab() {
+  const { theme, setTheme } = useThemeStore();
+  return (
+    <>
+      <h3>Тема интерфейса</h3>
+      <div className="theme-grid">
+        {THEMES.map((t) => (
+          <button
+            key={t.id}
+            className={"theme-card" + (theme === t.id ? " active" : "")}
+            onClick={() => setTheme(t.id)}
+          >
+            <canvas
+              className="theme-preview"
+              width={48}
+              height={32}
+              ref={(el) => {
+                if (!el) return;
+                const ctx = el.getContext("2d")!;
+                ctx.fillStyle = t.preview[0];
+                ctx.fillRect(0, 0, 48, 32);
+                ctx.fillStyle = t.preview[1];
+                ctx.fillRect(4, 4, 40, 18);
+                ctx.fillStyle = t.preview[2];
+                ctx.fillRect(4, 26, 40, 3);
+              }}
+            />
+            <strong>{t.label}</strong>
+            <span className="theme-desc">{t.desc}</span>
+          </button>
+        ))}
+      </div>
+      <div className="help-note" style={{ marginTop: 14 }}>
+        Тема сохраняется в браузере и восстанавливается при следующем открытии.
       </div>
     </>
   );
