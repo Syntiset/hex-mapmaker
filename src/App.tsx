@@ -124,23 +124,25 @@ export default function App() {
             panOverride={spacePan}
           />
           <Group
-            gap={2}
+            gap={4}
             align="center"
-            p={3}
+            p={6}
             style={{
               position: "absolute",
-              right: 10,
-              bottom: 10,
-              background: "rgba(14,14,10,0.95)",
-              border: "1px solid var(--border)",
+              right: 12,
+              bottom: 12,
+              background: "rgba(20,20,14,0.95)",
+              border: "1px solid var(--accent)",
+              borderRadius: 2,
+              boxShadow: "0 2px 12px rgba(0,0,0,0.6)",
               zIndex: 10,
             }}
           >
-            <Button variant="default" size="compact-xs" onClick={() => setZoom(1)} title="100%">1×</Button>
-            <Button variant="default" size="compact-xs" onClick={() => setZoom(2)} title="200%">2×</Button>
-            <Button variant="default" size="compact-xs" onClick={() => setZoom(4)} title="400%">4×</Button>
-            <Button variant="default" size="compact-xs" onClick={fitToScreen} title="Вписать карту">Fit</Button>
-            <Text size="11px" c="radiation" px={6} style={{ minWidth: 44, textAlign: "right" }}>
+            <Button variant="filled" color="dark.6" size="xs" onClick={() => setZoom(1)} title="100%" styles={{ root: { color: "var(--text)", border: "1px solid var(--border)" } }}>1×</Button>
+            <Button variant="filled" color="dark.6" size="xs" onClick={() => setZoom(2)} title="200%" styles={{ root: { color: "var(--text)", border: "1px solid var(--border)" } }}>2×</Button>
+            <Button variant="filled" color="dark.6" size="xs" onClick={() => setZoom(4)} title="400%" styles={{ root: { color: "var(--text)", border: "1px solid var(--border)" } }}>4×</Button>
+            <Button variant="filled" color="dark.6" size="xs" onClick={fitToScreen} title="Вписать карту" styles={{ root: { color: "var(--accent-2)", border: "1px solid var(--border)" } }}>Fit</Button>
+            <Text size="sm" fw={700} c="wasteland.4" px={4} style={{ minWidth: 52, textAlign: "right" }}>
               {Math.round(view.scale * 100)}%
             </Text>
           </Group>
