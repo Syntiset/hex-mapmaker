@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import type Konva from "konva";
-import { AppShell, ActionIcon, Group, Box, Text } from "@mantine/core";
+import { AppShell, Button, Group, Box, Text, ScrollArea } from "@mantine/core";
 import { TopBar } from "./components/TopBar";
 import { Toolbar } from "./components/Toolbar";
 import { TilePalette } from "./components/TilePalette";
@@ -105,9 +105,11 @@ export default function App() {
       </AppShell.Header>
 
       <AppShell.Navbar p="xs" className="left">
-        <Toolbar />
-        <Box mt="md" />
-        <TilePalette />
+        <AppShell.Section component={ScrollArea} grow scrollbarSize={6} type="hover">
+          <Toolbar />
+          <Box mt="md" />
+          <TilePalette />
+        </AppShell.Section>
       </AppShell.Navbar>
 
       <AppShell.Main style={{ position: "relative", overflow: "hidden" }}>
@@ -129,16 +131,16 @@ export default function App() {
               position: "absolute",
               right: 10,
               bottom: 10,
-              background: "rgba(14,14,10,0.90)",
+              background: "rgba(14,14,10,0.95)",
               border: "1px solid var(--border)",
               zIndex: 10,
             }}
           >
-            <ActionIcon variant="subtle" size="sm" onClick={() => setZoom(1)} title="100%">1×</ActionIcon>
-            <ActionIcon variant="subtle" size="sm" onClick={() => setZoom(2)} title="200%">2×</ActionIcon>
-            <ActionIcon variant="subtle" size="sm" onClick={() => setZoom(4)} title="400%">4×</ActionIcon>
-            <ActionIcon variant="subtle" size="sm" onClick={fitToScreen} title="Вписать карту"><Text size="10px">Fit</Text></ActionIcon>
-            <Text size="11px" c="radiation" pr={4} style={{ minWidth: 38, textAlign: "right" }}>
+            <Button variant="default" size="compact-xs" onClick={() => setZoom(1)} title="100%">1×</Button>
+            <Button variant="default" size="compact-xs" onClick={() => setZoom(2)} title="200%">2×</Button>
+            <Button variant="default" size="compact-xs" onClick={() => setZoom(4)} title="400%">4×</Button>
+            <Button variant="default" size="compact-xs" onClick={fitToScreen} title="Вписать карту">Fit</Button>
+            <Text size="11px" c="radiation" px={6} style={{ minWidth: 44, textAlign: "right" }}>
               {Math.round(view.scale * 100)}%
             </Text>
           </Group>

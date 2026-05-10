@@ -7,7 +7,6 @@ import {
   Text,
   Divider,
   HoverCard,
-  ScrollArea,
   Box,
 } from "@mantine/core";
 import { useMapStore } from "../store/mapStore";
@@ -164,9 +163,8 @@ export function TilePalette() {
         </Tabs.List>
       </Tabs>
 
-      <ScrollArea.Autosize mah={500} type="hover" scrollbarSize={6}>
-        <Stack gap={1}>
-          {visibleTiles.map((t) => {
+      <Stack gap={1}>
+        {visibleTiles.map((t) => {
             const active = paintMode === "tile" && activeId === t.id;
             return (
               <HoverCard key={t.id} openDelay={300} closeDelay={50} position="right" withArrow shadow="lg">
@@ -200,8 +198,7 @@ export function TilePalette() {
               </HoverCard>
             );
           })}
-        </Stack>
-      </ScrollArea.Autosize>
+      </Stack>
     </Stack>
   );
 }
