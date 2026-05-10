@@ -35,3 +35,4 @@ backup/
 
 # Local Netlify folder
 .netlify
+tmp/
