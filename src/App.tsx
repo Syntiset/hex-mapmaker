@@ -98,7 +98,6 @@ export default function App() {
       header={{ height: HEADER_H }}
       navbar={{ width: NAVBAR_W, breakpoint: "sm", collapsed: { mobile: !sidebarOpen, desktop: !sidebarOpen } }}
       footer={{ height: FOOTER_H }}
-      padding={0}
     >
       <AppShell.Header>
         <TopBar stageRef={stageRef} sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen((o) => !o)} />
@@ -112,8 +111,8 @@ export default function App() {
         </AppShell.Section>
       </AppShell.Navbar>
 
-      <AppShell.Main style={{ position: "relative", overflow: "hidden" }}>
-        <Box ref={containerRef} className="canvas-host" style={{ position: "absolute", inset: 0 }}>
+      <AppShell.Main p={0}>
+        <Box ref={containerRef} className="canvas-host" style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
           <HexGridCanvas
             ref={stageRef}
             width={size.w}
@@ -123,31 +122,32 @@ export default function App() {
             setViewState={setView}
             panOverride={spacePan}
           />
-          <Group
-            gap={4}
-            align="center"
-            p={6}
-            style={{
-              position: "absolute",
-              right: 12,
-              bottom: 12,
-              background: "rgba(20,20,14,0.95)",
-              border: "1px solid var(--accent)",
-              borderRadius: 2,
-              boxShadow: "0 2px 12px rgba(0,0,0,0.6)",
-              zIndex: 10,
-            }}
-          >
-            <Button variant="filled" color="dark.6" size="xs" onClick={() => setZoom(1)} title="100%" styles={{ root: { color: "var(--text)", border: "1px solid var(--border)" } }}>1×</Button>
-            <Button variant="filled" color="dark.6" size="xs" onClick={() => setZoom(2)} title="200%" styles={{ root: { color: "var(--text)", border: "1px solid var(--border)" } }}>2×</Button>
-            <Button variant="filled" color="dark.6" size="xs" onClick={() => setZoom(4)} title="400%" styles={{ root: { color: "var(--text)", border: "1px solid var(--border)" } }}>4×</Button>
-            <Button variant="filled" color="dark.6" size="xs" onClick={fitToScreen} title="Вписать карту" styles={{ root: { color: "var(--accent-2)", border: "1px solid var(--border)" } }}>Fit</Button>
-            <Text size="sm" fw={700} c="wasteland.4" px={4} style={{ minWidth: 52, textAlign: "right" }}>
-              {Math.round(view.scale * 100)}%
-            </Text>
-          </Group>
         </Box>
       </AppShell.Main>
+
+      <Group
+        gap={4}
+        align="center"
+        p={6}
+        style={{
+          position: "fixed",
+          right: 16,
+          bottom: FOOTER_H + 12,
+          background: "rgba(20,20,14,0.95)",
+          border: "1px solid var(--accent)",
+          borderRadius: 2,
+          boxShadow: "0 2px 12px rgba(0,0,0,0.6)",
+          zIndex: 200,
+        }}
+      >
+        <Button variant="filled" color="dark.6" size="xs" onClick={() => setZoom(1)} title="100%" styles={{ root: { color: "var(--text)", border: "1px solid var(--border)" } }}>1×</Button>
+        <Button variant="filled" color="dark.6" size="xs" onClick={() => setZoom(2)} title="200%" styles={{ root: { color: "var(--text)", border: "1px solid var(--border)" } }}>2×</Button>
+        <Button variant="filled" color="dark.6" size="xs" onClick={() => setZoom(4)} title="400%" styles={{ root: { color: "var(--text)", border: "1px solid var(--border)" } }}>4×</Button>
+        <Button variant="filled" color="dark.6" size="xs" onClick={fitToScreen} title="Вписать карту" styles={{ root: { color: "var(--accent-2)", border: "1px solid var(--border)" } }}>Fit</Button>
+        <Text size="sm" fw={700} c="wasteland.4" px={4} style={{ minWidth: 52, textAlign: "right" }}>
+          {Math.round(view.scale * 100)}%
+        </Text>
+      </Group>
 
       <AppShell.Footer>
         <StatusBar hoverKey={hoverKey} onOpenHelp={() => setHelpOpen(true)} />
