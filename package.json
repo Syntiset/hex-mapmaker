@@ -1,7 +1,7 @@
 {
   "name": "mapmaker",
   "private": true,
-  "version": "1.5.0.0.1",
+  "version": "1.6.0",
   "description": "Web/desktop редактор гексагональных карт для GURPS (Fallout style)",
   "author": "Syntiset",
   "main": "electron/main.cjs",
@@ -13,11 +13,17 @@
     "test": "vitest",
     "test:run": "vitest run",
     "preview": "vite preview",
+    "tg-bridge": "node scripts/tg-claude-bridge.mjs",
     "electron:dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "electron:pack": "npm run build && electron-builder --win --dir",
-    "electron:build": "npm run build && electron-builder --win"
+    "electron:build": "npm run build && electron-builder --win",
+    "deploy": "npm run build && netlify deploy --prod --dir dist"
   },
   "dependencies": {
+    "@mantine/core": "^9.1.1",
+    "@mantine/hooks": "^9.1.1",
+    "@mantine/modals": "^9.1.1",
+    "@mantine/notifications": "^9.1.1",
     "@types/file-saver": "^2.0.7",
     "alea": "^1.0.1",
     "file-saver": "^2.0.5",

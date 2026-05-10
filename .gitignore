@@ -13,6 +13,11 @@ dist-ssr
 release
 dev-dist
 *.local
+.env.local
+.env
+
+# Claude Code per-user settings (содержат токены, hooks)
+.claude/
 
 # Local rollback backups
 backup/
@@ -27,3 +32,6 @@ backup/
 *.njsproj
 *.sln
 *.sw?
+
+# Local Netlify folder
+.netlify

@@ -22,10 +22,11 @@
 
 ## Внешние зависимости
 - React 19, Vite 8, TypeScript ~6, react-konva, konva, zustand, file-saver.
+- **Mantine** (v8) — `@mantine/core`, `@mantine/hooks`, `@mantine/notifications`, `@mantine/modals`. AppShell, Tooltip, Menu, Modal, SegmentedControl, Tabs, HoverCard, NumberInput, Select, Switch, Notifications.
 
 ## Текущие риски
 - Производительность Konva на больших картах не замерялась.
 - Schema JSON — версия 2, есть миграция с v1 (axial keys → world-pixel points для дорог).
 
 ## Дата обновления
-- 2026-05-09 (v1.5.2)
+- 2026-05-10 (v1.6.0)

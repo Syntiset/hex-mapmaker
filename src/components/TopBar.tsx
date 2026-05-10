@@ -1,5 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import type Konva from "konva";
+import {
+  Group,
+  Button,
+  NumberInput,
+  Menu,
+  Divider,
+  Text,
+  Tooltip,
+  ActionIcon,
+} from "@mantine/core";
+import { notifications } from "@mantine/notifications";
+import { modals } from "@mantine/modals";
 import { useMapStore } from "../store/mapStore";
 import { saveJson } from "../io/saveJson";
 import { loadJsonFile } from "../io/loadJson";
@@ -30,28 +42,25 @@ export function TopBar({ stageRef }: Props) {
   const [cols, setCols] = useState(grid.cols);
   const [rows, setRows] = useState(grid.rows);
   const [recents, setRecents] = useState<RecentEntry[]>([]);
-  const [recentOpen, setRecentOpen] = useState(false);
-  const recentRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setRecents(listRecents());
-  }, []);
+  useEffect(() => { setRecents(listRecents()); }, []);
 
-  useEffect(() => {
-    function onClick(e: MouseEvent) {
-      if (recentRef.current && !recentRef.current.contains(e.target as Node)) {
-        setRecentOpen(false);
-      }
-    }
-    if (recentOpen) {
-      window.addEventListener("mousedown", onClick);
-      return () => window.removeEventListener("mousedown", onClick);
-    }
-  }, [recentOpen]);
+  function confirmIfDirty(message: string, onConfirm: () => void) {
+    if (Object.keys(cells).length === 0) { onConfirm(); return; }
+    modals.openConfirmModal({
+      title: "Подтверждение",
+      children: <Text size="sm">{message}</Text>,
+      labels: { confirm: "Продолжить", cancel: "Отмена" },
+      confirmProps: { color: "red" },
+      onConfirm,
+    });
+  }
 
   function handleNew() {
-    if (Object.keys(cells).length > 0 && !confirm("Создать новую карту? Текущая работа будет потеряна.")) return;
-    newMap(cols, rows);
+    confirmIfDirty("Создать новую карту? Текущая работа будет потеряна.", () => {
+      newMap(cols, rows);
+      notifications.show({ message: `Новая карта ${cols}×${rows}`, color: "wasteland", autoClose: 1500 });
+    });
   }
 
   function handleSave() {
@@ -60,6 +69,7 @@ export function TopBar({ stageRef }: Props) {
     saveJson(map, filename);
     pushRecent(filename, { ...map, version: 3 });
     setRecents(listRecents());
+    notifications.show({ message: `Сохранено: ${filename}`, color: "wasteland", autoClose: 2000 });
   }
 
   async function handleOpen(e: React.ChangeEvent<HTMLInputElement>) {
@@ -70,62 +80,74 @@ export function TopBar({ stageRef }: Props) {
       loadMap({ grid: data.grid, cells: data.cells, roadPaths: data.roadPaths });
       pushRecent(file.name, data);
       setRecents(listRecents());
+      notifications.show({ message: `Открыто: ${file.name}`, color: "wasteland", autoClose: 2000 });
     } catch (err) {
-      alert("Ошибка загрузки: " + (err as Error).message);
+      notifications.show({ message: "Ошибка загрузки: " + (err as Error).message, color: "red" });
     }
     e.target.value = "";
   }
 
   function handleOpenRecent(entry: RecentEntry) {
-    if (Object.keys(cells).length > 0 && !confirm(`Открыть «${entry.name}»? Текущая работа будет потеряна.`)) return;
-    loadMap({ grid: entry.data.grid, cells: entry.data.cells, roadPaths: entry.data.roadPaths });
-    pushRecent(entry.name, entry.data);
-    setRecents(listRecents());
-    setRecentOpen(false);
+    confirmIfDirty(`Открыть «${entry.name}»? Текущая работа будет потеряна.`, () => {
+      loadMap({ grid: entry.data.grid, cells: entry.data.cells, roadPaths: entry.data.roadPaths });
+      pushRecent(entry.name, entry.data);
+      setRecents(listRecents());
+    });
   }
 
   function handleExport() {
-    if (stageRef.current) exportStagePng(stageRef.current);
+    if (stageRef.current) {
+      exportStagePng(stageRef.current);
+      notifications.show({ message: "PNG экспортирован", color: "wasteland", autoClose: 1500 });
+    }
   }
 
   return (
-    <div className="topbar">
-      <div className="topbar-brand">
-        <span className="brand">⚙ Hex Map Maker</span>
-      </div>
+    <Group h="100%" px="sm" gap="xs" wrap="nowrap" align="center" className="topbar-mantine">
+      <Group gap={6} wrap="nowrap">
+        <Text fw={700} c="wasteland.4" size="sm" style={{ letterSpacing: 1.5, textTransform: "uppercase", textShadow: "0 0 8px rgba(111,220,74,0.45)" }}>
+          ⚙ Hex Map Maker
+        </Text>
+      </Group>
 
-      <div className="topbar-zone">
-        <label>Кол:&nbsp;<input type="number" min={1} max={200} value={cols} onChange={(e) => setCols(+e.target.value)} /></label>
-        <label>Стр:&nbsp;<input type="number" min={1} max={200} value={rows} onChange={(e) => setRows(+e.target.value)} /></label>
-        <button className="btn-sm" onClick={handleNew}>Новая</button>
-      </div>
+      <Divider orientation="vertical" />
 
-      <div className="topbar-zone">
-        <button className="btn-sm" onClick={() => fileInput.current?.click()}>Открыть</button>
+      <Group gap={6} wrap="nowrap">
+        <NumberInput size="xs" w={70} min={1} max={200} label="Кол" value={cols} onChange={(v) => setCols(typeof v === "number" ? v : +v)} />
+        <NumberInput size="xs" w={70} min={1} max={200} label="Стр" value={rows} onChange={(v) => setRows(typeof v === "number" ? v : +v)} />
+        <Button size="xs" variant="default" onClick={handleNew} mt={18}>Новая</Button>
+      </Group>
+
+      <Divider orientation="vertical" />
+
+      <Group gap={6} wrap="nowrap">
+        <Button size="xs" variant="default" onClick={() => fileInput.current?.click()}>Открыть</Button>
         <input ref={fileInput} type="file" accept="application/json,.json" style={{ display: "none" }} onChange={handleOpen} />
-        <div ref={recentRef} className={recentOpen ? "recent-menu open" : "recent-menu"}>
-          <button className="btn-sm" onClick={() => setRecentOpen((o) => !o)}>Недавние ▾</button>
-          <div className="recent-list">
-            {recents.length === 0 ? (
-              <div className="empty">Пусто. Сохрани или открой карту.</div>
-            ) : (
-              recents.map((r) => (
-                <button key={r.name + r.savedAt} onClick={() => handleOpenRecent(r)}>
-                  <div>{r.name}</div>
-                  <div style={{ fontSize: 10, color: "#7f7a60" }}>{formatDate(r.savedAt)}</div>
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-        <button className="btn-sm" onClick={handleSave}>Сохранить</button>
-        <button className="btn-sm" onClick={handleExport}>Экспорт PNG</button>
-      </div>
 
-      <div className="topbar-zone" style={{ marginLeft: "auto", borderRight: "none" }}>
-        <button className="btn-sm" onClick={undo} title="Ctrl+Z">↶ Отмена</button>
-        <button className="btn-sm" onClick={redo} title="Ctrl+Y">↷ Повтор</button>
-      </div>
-    </div>
+        <Menu shadow="md" width={260} position="bottom-start">
+          <Menu.Target>
+            <Button size="xs" variant="default" rightSection="▾">Недавние</Button>
+          </Menu.Target>
+          <Menu.Dropdown>
+            {recents.length === 0 ? (
+              <Menu.Item disabled><Text size="xs" c="dimmed" fs="italic">Пусто. Сохрани или открой карту.</Text></Menu.Item>
+            ) : recents.map((r) => (
+              <Menu.Item key={r.name + r.savedAt} onClick={() => handleOpenRecent(r)}>
+                <Text size="xs">{r.name}</Text>
+                <Text size="xs" c="dimmed">{formatDate(r.savedAt)}</Text>
+              </Menu.Item>
+            ))}
+          </Menu.Dropdown>
+        </Menu>
+
+        <Button size="xs" variant="default" onClick={handleSave}>Сохранить</Button>
+        <Button size="xs" variant="default" onClick={handleExport}>Экспорт PNG</Button>
+      </Group>
+
+      <Group gap={4} ml="auto" wrap="nowrap">
+        <Tooltip label="Отменить (Ctrl+Z)"><ActionIcon variant="default" onClick={undo} size="lg">↶</ActionIcon></Tooltip>
+        <Tooltip label="Повторить (Ctrl+Y)"><ActionIcon variant="default" onClick={redo} size="lg">↷</ActionIcon></Tooltip>
+      </Group>
+    </Group>
   );
 }

@@ -1,5 +1,18 @@
 # 04_changelog.md
 
+## 2026-05-10 — v1.6.0 — Mantine UI
+
+- **Mantine** установлен (`@mantine/core`, `@mantine/hooks`, `@mantine/notifications`, `@mantine/modals`). `MantineProvider` оборачивает приложение в `src/main.tsx`, `defaultColorScheme="dark"`, кастомные цветовые шкалы `wasteland` и `radiation` (зелёный/жёлтый под текущий стиль).
+- **`src/ui/mantineTheme.ts`:** `createTheme` + `cssVariablesResolver`, который мапит `--mantine-color-body/text/default/dark-*` на наши `--bg/--panel/--border/--text` — темы (`data-theme="night|fallout"`) каскадом проникают в Mantine компоненты без отдельной настройки на тему.
+- **Layout:** `App.tsx` переписан на `AppShell` (Header 44px / Navbar 300px / Footer 30px / Main). `useEffect` для resize слушает `sidebarOpen` чтобы canvas пересчитал размер при сворачивании сайдбара.
+- **TopBar:** `Group` + `Divider` с зонами; `NumberInput` для cols/rows; `Menu` для Недавних (вместо самописного dropdown с outside-click); `Button`/`ActionIcon`/`Tooltip`. Подтверждение «потерять работу» — через `modals.openConfirmModal`. Сообщения «сохранено / открыто / экспорт» — через `notifications.show` (top-right, auto-close).
+- **Toolbar:** `SegmentedControl` для Биом/Тайл (вместо ручного toggle), `SimpleGrid` 2×N для инструментов с `Tooltip` на каждом, `Select` для типа дороги (с `withinPortal` чтобы не обрезалось сайдбаром), `Switch` для free-hand/grid.
+- **TilePalette:** `SimpleGrid 4` для биомов, `Tabs variant="pills"` для категорий тайлов, `ScrollArea.Autosize` для длинного списка, `HoverCard` для превью (replace ручного `hover-preview` div + long-press logic).
+- **StatusBar:** `Group` с разделителями, `Text` цветовыми токенами Mantine, `Button variant="subtle"` для «? Помощь».
+- **HelpModal:** `Modal` с `Tabs` (desktop/touch/themes), `Kbd` для горячих клавиш, `Alert` для warning'ов, `SimpleGrid` для theme-card.
+- **styles.css:** убраны устаревшие классы (`.topbar`, `.toolbar`, `.tile-btn`, `.modal-*`, `.statusbar-*`, `.recent-menu`, `.hover-preview`, `.help-row`). Остались CSS-переменные тем + переопределения `.mantine-AppShell-header/navbar/footer` под текущий военный стиль и fallout-декорации (двойная граница, scanlines `body::before`).
+- **Размер бандла:** JS 940 KB (gzip 287), CSS 212 KB (gzip 31). Прирост ~250 KB JS / ~200 KB CSS — стоимость Mantine.
+
 ## 2026-05-09 — v1.5.2 — Система тем + редизайн UI
 
 - **Система тем:** `src/store/themeStore.ts` — zustand + persist. Три темы: `default` (военный тёмный), `night` (синий, для игры в темноте), `fallout` (CRT-зелень, scanlines, ржавые границы). Переключение в «? Помощь» → вкладка «🎨 Темы». Тема сохраняется в localStorage, восстанавливается при загрузке.

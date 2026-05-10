@@ -1,4 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Stack,
+  Tabs,
+  SimpleGrid,
+  UnstyledButton,
+  Text,
+  Divider,
+  HoverCard,
+  ScrollArea,
+  Box,
+} from "@mantine/core";
 import { useMapStore } from "../store/mapStore";
 import {
   drawBiomeRich,
@@ -11,8 +22,6 @@ import { FALLOUT_TILE_CATEGORIES } from "../tiles/fallout";
 
 const PREVIEW = 52;
 const HOVER_PREVIEW = 140;
-const LONG_PRESS_MS = 450;
-const LONG_PRESS_MOVE_TOL = 10; // px
 
 function TilePreview({ tile, biome, size = PREVIEW }: { tile: TileDef; biome: BiomeDef; size?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -34,7 +43,7 @@ function TilePreview({ tile, biome, size = PREVIEW }: { tile: TileDef; biome: Bi
     drawIconEnhanced(ctx, 0, 0, cx, cy, hexS, tile);
     drawHexStroke(ctx, cx, cy, hexS, biome.stroke, 1);
   }, [tile, biome, size]);
-  return <canvas ref={ref} width={size} height={size} />;
+  return <canvas ref={ref} width={size} height={size} style={{ display: "block" }} />;
 }
 
 function BiomePreview({ biome, size = PREVIEW }: { biome: BiomeDef; size?: number }) {
@@ -56,15 +65,25 @@ function BiomePreview({ biome, size = PREVIEW }: { biome: BiomeDef; size?: numbe
     ctx.restore();
     drawHexStroke(ctx, cx, cy, hexS, biome.stroke, 1);
   }, [biome, size]);
-  return <canvas ref={ref} width={size} height={size} />;
+  return <canvas ref={ref} width={size} height={size} style={{ display: "block" }} />;
 }
 
-interface HoverState {
-  kind: "biome" | "tile";
-  id: string;
-  x: number;
-  y: number;
-  fromTouch?: boolean;
+function paletteCellStyle(active: boolean, accent: "wasteland" | "radiation" = "wasteland"): React.CSSProperties {
+  const accentColor = accent === "wasteland" ? "var(--accent)" : "var(--accent-2)";
+  return {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    padding: "4px 2px",
+    fontSize: 9,
+    background: active ? "var(--bg-2)" : "var(--panel)",
+    border: `1px solid ${active ? accentColor : "var(--border)"}`,
+    borderRadius: 1,
+    color: active ? accentColor : "var(--text)",
+    transition: "background 0.1s, border-color 0.1s",
+    minWidth: 0,
+    boxShadow: active ? `inset 0 0 0 1px ${accentColor}30` : "none",
+  };
 }
 
 export function TilePalette() {
@@ -79,11 +98,6 @@ export function TilePalette() {
   const paintMode = useMapStore((s) => s.paintMode);
 
   const [category, setCategory] = useState<string>("all");
-  const [hover, setHover] = useState<HoverState | null>(null);
-
-  const longPressTimer = useRef<number | null>(null);
-  const longPressStart = useRef<{ x: number; y: number } | null>(null);
-  const suppressClick = useRef(false);
 
   const activeBiome = biomes.find((b) => b.id === activeBiomeId) ?? biomes[0];
 
@@ -95,142 +109,108 @@ export function TilePalette() {
     return cat.tileIds.map((id) => tileById.get(id)).filter((t): t is TileDef => !!t);
   }, [category, tiles, tileById]);
 
-  const hoverBiome = hover?.kind === "biome" ? biomes.find((b) => b.id === hover.id) : undefined;
-  const hoverTile = hover?.kind === "tile" ? tileById.get(hover.id) : undefined;
-
   function ensurePaintCompatibleTool() {
     const cur = useMapStore.getState().tool;
     if (cur !== "paint" && cur !== "erase") setTool("paint");
   }
 
-  function clearLongPress() {
-    if (longPressTimer.current !== null) {
-      window.clearTimeout(longPressTimer.current);
-      longPressTimer.current = null;
-    }
-    longPressStart.current = null;
-  }
-
-  // For touch / pen — long-press shows preview without selecting.
-  function startLongPress(kind: "biome" | "tile", id: string, e: React.PointerEvent) {
-    if (e.pointerType === "mouse") return;
-    const x = e.clientX, y = e.clientY;
-    longPressStart.current = { x, y };
-    clearLongPress();
-    longPressTimer.current = window.setTimeout(() => {
-      setHover({ kind, id, x, y, fromTouch: true });
-      suppressClick.current = true;
-      longPressTimer.current = null;
-    }, LONG_PRESS_MS);
-  }
-
-  function moveLongPress(e: React.PointerEvent) {
-    if (!longPressStart.current) return;
-    const dx = e.clientX - longPressStart.current.x;
-    const dy = e.clientY - longPressStart.current.y;
-    if (dx * dx + dy * dy > LONG_PRESS_MOVE_TOL * LONG_PRESS_MOVE_TOL) clearLongPress();
-  }
-
-  // While touch-preview is shown, tap anywhere outside the preview closes it.
-  useEffect(() => {
-    if (!hover?.fromTouch) return;
-    function close(e: PointerEvent) {
-      const t = e.target as HTMLElement | null;
-      if (t && t.closest(".hover-preview")) return;
-      setHover(null);
-    }
-    window.addEventListener("pointerdown", close);
-    return () => window.removeEventListener("pointerdown", close);
-  }, [hover?.fromTouch]);
-
   return (
-    <div className="palette">
-      <div className="palette-section-header">Биомы</div>
-      <div className="palette-grid">
-        {biomes.map((b) => (
-          <button
-            key={b.id}
-            className={paintMode === "biome" && activeBiomeId === b.id ? "tile-btn active" : "tile-btn"}
-            onClick={(e) => {
-              if (suppressClick.current) { suppressClick.current = false; e.preventDefault(); return; }
-              setActiveBiome(b.id);
-              setPaintMode("biome");
-              ensurePaintCompatibleTool();
-            }}
-            onMouseEnter={(e) => setHover({ kind: "biome", id: b.id, x: e.clientX, y: e.clientY })}
-            onMouseMove={(e) => setHover((h) => (h && h.id === b.id && !h.fromTouch ? { ...h, x: e.clientX, y: e.clientY } : h))}
-            onMouseLeave={() => setHover((h) => (h && h.id === b.id && !h.fromTouch ? null : h))}
-            onPointerDown={(e) => startLongPress("biome", b.id, e)}
-            onPointerMove={moveLongPress}
-            onPointerUp={clearLongPress}
-            onPointerCancel={clearLongPress}
-            onPointerLeave={clearLongPress}
-            title={b.name}
-          >
-            <BiomePreview biome={b} />
-            <span>{b.name}</span>
-          </button>
-        ))}
-      </div>
+    <Stack gap={8}>
+      <SectionHeader title="Биомы" />
+      <SimpleGrid cols={4} spacing={3} verticalSpacing={3}>
+        {biomes.map((b) => {
+          const active = paintMode === "biome" && activeBiomeId === b.id;
+          return (
+            <HoverCard key={b.id} openDelay={300} closeDelay={50} position="right" withArrow shadow="lg">
+              <HoverCard.Target>
+                <UnstyledButton
+                  onClick={() => {
+                    setActiveBiome(b.id);
+                    setPaintMode("biome");
+                    ensurePaintCompatibleTool();
+                  }}
+                  style={paletteCellStyle(active, "wasteland")}
+                >
+                  <BiomePreview biome={b} />
+                  <Text size="9px" mt={3} style={{ lineHeight: 1.1, textAlign: "center", wordBreak: "break-word" }}>{b.name}</Text>
+                </UnstyledButton>
+              </HoverCard.Target>
+              <HoverCard.Dropdown p={6}>
+                <BiomePreview biome={b} size={HOVER_PREVIEW} />
+                <Text size="xs" c="radiation" ta="center" mt={4}>{b.name}</Text>
+              </HoverCard.Dropdown>
+            </HoverCard>
+          );
+        })}
+      </SimpleGrid>
 
-      <div className="palette-section-header">Тайлы</div>
-      <div className="palette-hint">Поверх: {activeBiome.name}</div>
-      <div className="palette-categories">
-        <button
-          className={category === "all" ? "active" : ""}
-          onClick={() => setCategory("all")}
-        >Все</button>
-        {FALLOUT_TILE_CATEGORIES.map((c) => (
-          <button
-            key={c.id}
-            className={category === c.id ? "active" : ""}
-            onClick={() => setCategory(c.id)}
-          >{c.name}</button>
-        ))}
-      </div>
-      <div className="tile-list">
-        {visibleTiles.map((t) => (
-          <button
-            key={t.id}
-            className={paintMode === "tile" && activeId === t.id ? "tile-row active" : "tile-row"}
-            onClick={(e) => {
-              if (suppressClick.current) { suppressClick.current = false; e.preventDefault(); return; }
-              setActive(t.id);
-              setPaintMode("tile");
-              ensurePaintCompatibleTool();
-            }}
-            onMouseEnter={(e) => setHover({ kind: "tile", id: t.id, x: e.clientX, y: e.clientY })}
-            onMouseMove={(e) => setHover((h) => (h && h.id === t.id && !h.fromTouch ? { ...h, x: e.clientX, y: e.clientY } : h))}
-            onMouseLeave={() => setHover((h) => (h && h.id === t.id && !h.fromTouch ? null : h))}
-            onPointerDown={(e) => startLongPress("tile", t.id, e)}
-            onPointerMove={moveLongPress}
-            onPointerUp={clearLongPress}
-            onPointerCancel={clearLongPress}
-            onPointerLeave={clearLongPress}
-            title={t.name}
-          >
-            {t.name}
-          </button>
-        ))}
-      </div>
+      <Divider />
 
-      {hover && (hoverBiome || hoverTile) && (() => {
-        const offset = 16;
-        const w = HOVER_PREVIEW;
-        const px = Math.min(Math.max(8, hover.x + offset), window.innerWidth - w - 20);
-        const py = Math.min(Math.max(8, hover.y + offset), window.innerHeight - w - 40);
-        return (
-          <div className="hover-preview" style={{ left: px, top: py, width: w }}>
-            {hoverBiome && <BiomePreview biome={hoverBiome} size={w} />}
-            {hoverTile && <TilePreview tile={hoverTile} biome={activeBiome} size={w} />}
-            <div className="hp-name">
-              {hoverBiome?.name ?? hoverTile?.name}
-              {hoverTile && <div style={{ fontSize: 9, color: "#7f7a60", marginTop: 2 }}>поверх: {activeBiome.name}</div>}
-              {hover.fromTouch && <div style={{ fontSize: 9, color: "#7f7a60", marginTop: 2 }}>тап вне превью — закрыть</div>}
-            </div>
-          </div>
-        );
-      })()}
-    </div>
+      <SectionHeader title="Тайлы" />
+      <Text size="10px" c="dimmed" fs="italic" mt={-4}>Поверх: {activeBiome.name}</Text>
+
+      <Tabs
+        value={category}
+        onChange={(v) => v && setCategory(v)}
+        variant="pills"
+        color="radiation"
+        styles={{ list: { gap: 2 }, tab: { fontSize: 10, padding: "3px 7px", height: "auto", minHeight: 0 } }}
+      >
+        <Tabs.List>
+          <Tabs.Tab value="all">Все</Tabs.Tab>
+          {FALLOUT_TILE_CATEGORIES.map((c) => (
+            <Tabs.Tab key={c.id} value={c.id}>{c.name}</Tabs.Tab>
+          ))}
+        </Tabs.List>
+      </Tabs>
+
+      <ScrollArea.Autosize mah={500} type="hover" scrollbarSize={6}>
+        <Stack gap={1}>
+          {visibleTiles.map((t) => {
+            const active = paintMode === "tile" && activeId === t.id;
+            return (
+              <HoverCard key={t.id} openDelay={300} closeDelay={50} position="right" withArrow shadow="lg">
+                <HoverCard.Target>
+                  <UnstyledButton
+                    onClick={() => {
+                      setActive(t.id);
+                      setPaintMode("tile");
+                      ensurePaintCompatibleTool();
+                    }}
+                    style={{
+                      textAlign: "left",
+                      padding: "5px 10px",
+                      fontSize: 11,
+                      background: active ? "var(--bg-2)" : "var(--panel)",
+                      border: "1px solid transparent",
+                      borderRadius: 1,
+                      borderLeft: `2px solid ${active ? "var(--accent-2)" : "transparent"}`,
+                      color: active ? "var(--accent-2)" : "var(--text)",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {t.name}
+                  </UnstyledButton>
+                </HoverCard.Target>
+                <HoverCard.Dropdown p={6}>
+                  <TilePreview tile={t} biome={activeBiome} size={HOVER_PREVIEW} />
+                  <Text size="xs" c="radiation" ta="center" mt={4}>{t.name}</Text>
+                  <Text size="9px" c="dimmed" ta="center">поверх: {activeBiome.name}</Text>
+                </HoverCard.Dropdown>
+              </HoverCard>
+            );
+          })}
+        </Stack>
+      </ScrollArea.Autosize>
+    </Stack>
+  );
+}
+
+function SectionHeader({ title }: { title: string }) {
+  return (
+    <Box style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <Text size="10px" fw={700} c="radiation" style={{ letterSpacing: 1.5, textTransform: "uppercase" }}>{title}</Text>
+      <Box style={{ flex: 1, height: 1, background: "var(--border)" }} />
+    </Box>
   );
 }

@@ -1,73 +1,155 @@
-# React + TypeScript + Vite
+# Hex Map Maker
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Веб-редактор гексагональных карт для настольных RPG (в первую очередь GURPS).
+Стиль по умолчанию — Fallout: пустоши, руины, радиация.
 
-Currently, two official plugins are available:
+> **Статус:** в разработке. Это рабочий прототип для собственных кампаний, а не релиз.
+> Версионирование `MAJOR.MINOR.PATCH.X.Y` — две последние цифры это микро-итерации.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## Что это и для кого
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Если вы ведущий и вам нужна карта мира на гексах — нарисовать её, сохранить и принести
+на сессию — этот редактор делает ровно это.
 
-## Expanding the ESLint configuration
+- **Гексы pointy-top**, прямоугольная карта произвольного размера.
+- **14 биомов** (террейн): пустошь, песок, пепел, лес, хвойный лес, сгоревший лес,
+  болото, вода, токсичная вода, горы, снежный пик, обрыв, радзона, аномалия.
+- **35 тайлов** (объекты на гексе): поселения, бункеры, vault, башни, кратеры,
+  заправки, шахты, кладбища, минные поля, разбитые машины, мутафлора, разные
+  варианты деревьев и леса по плотности, и т.д.
+- **Дороги**: шоссе, грунтовка, тропа — рисуются по гексам с привязкой к центрам
+  или free-hand.
+- **Подписи** на гексах.
+- **Сохранение/загрузка** в JSON, **экспорт PNG**.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+---
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Как это запустить
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Вариант 1 — открыть в браузере (проще всего)
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+1. Скачать собранный билд из релизов (или собрать локально через `npm run build`).
+2. Положить папку `dist/` на любой статический хостинг (Netlify Drop, Cloudflare Pages,
+   GitHub Pages — всё подойдёт, бэкенда нет).
+3. Открыть URL в любом современном браузере.
+
+### Вариант 2 — установить как приложение (PWA)
+
+1. Открыть редактор в Chrome / Edge на компьютере или на Android.
+2. В адресной строке (или в меню «⋮») будет «Установить приложение».
+3. После установки запускается из меню Пуск / с рабочего стола, работает оффлайн.
+
+### Вариант 3 — Windows-приложение (.exe)
+
+`Hex Map Maker-<version>-x64.exe` (NSIS-установщик) или portable-версия — собираются
+из исходников через `npm run electron:build`. После установки запускается без браузера.
+
+---
+
+## Как этим пользоваться
+
+### Режимы рисования
+
+Внизу слева в боковой панели две вкладки:
+- **Биом** — кисть красит землю/террейн (фон гекса).
+- **Тайл** — кисть ставит объект (иконка поверх биома).
+
+Один и тот же гекс может иметь и биом, и тайл одновременно — например, бункер
+в радзоне.
+
+### Инструменты (на тулбаре)
+
+- **Кисть** — поставить выбранный биом/тайл на гекс.
+- **Ластик** — стереть. В режиме «Биом» — стереть биом, в режиме «Тайл» — только
+  тайл, биом останется.
+- **Дорога** — клик по гексам ставит точки маршрута. Чекбокс «Free-hand» переключает
+  на свободное рисование.
+- **Снять дорогу** — клик рядом с дорогой удаляет ту, что ближе всего.
+- **Подпись** — клик по гексу, всплывает поле для текста.
+- **Перенос** — Space-hold для панорамирования.
+
+### Горячие клавиши
+
+| Клавиша | Действие |
+|---|---|
+| `B` / `T` | Режим Биом / Тайл |
+| `R` | Инструмент «Дорога» |
+| `E` | Ластик |
+| `L` | Подпись |
+| `Space` (зажать) | Панорамирование |
+| `Ctrl/Cmd+Z` | Отмена |
+| `Ctrl/Cmd+Y` или `Ctrl+Shift+Z` | Повтор |
+
+### Зум
+
+В правом нижнем углу — кнопки `1×`, `2×`, `4×`, `Fit` (вписать карту целиком),
+рядом текущий процент. Колёсико мыши тоже зумит. На тач-устройствах — pinch.
+
+### Сохранение и загрузка
+
+- **Сохранить JSON** — скачивает файл с картой.
+- **Открыть JSON** — выбрать файл; старые форматы (v1, v2) автоматически
+  мигрируют в текущий v3.
+- **Недавние** — последние 5 сохранённых/открытых карт, лежат в localStorage
+  браузера.
+- **Экспорт PNG** — снимок карты как картинка.
+
+---
+
+## Для разработчиков
+
+Стек: Vite + React 19 + TypeScript + react-konva + zustand + zod + simplex-noise.
+
+```bash
+npm install         # установка зависимостей
+npm run dev         # dev-сервер на http://localhost:5173
+npm run dev -- --host 127.0.0.1   # явный IPv4 bind (если localhost не открывается под VPN)
+npm run dev -- --host 0.0.0.0     # доступ с других устройств в локальной сети
+npm run build       # production билд в dist/
+npm run test        # тесты в watch-режиме
+npm run test:run    # тесты однократно
+npm run lint        # eslint
+
+npm run electron:dev    # запуск в Electron в dev-режиме
+npm run electron:build  # сборка .exe (NSIS + portable) в release/
+
+npm run tg-bridge       # Telegram-мост к Claude Code (см. ниже)
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+#### Telegram-мост (опционально)
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Если хочется писать Claude из Telegram с любого устройства (телефон, другой
+комп), не теряя контекст разговора:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+1. Создать `.env.local` в корне (gitignored):
+   ```
+   TG_BOT_TOKEN=...токен бота от @BotFather...
+   TG_CHAT_ID=...числовой ID чата с тобой...
+   TG_CLAUDE_SESSION=tg-bridge-mapmaker
+   TG_SIGNATURE=— @yourname
+   ```
+2. Запустить мост: `npm run tg-bridge`. Он висит в терминале, polling-ом
+   читает TG, на каждое сообщение запускает `claude -p "..." --resume <session>`
+   в этом проекте и отправляет ответ обратно.
+3. Сессия сохраняется по `--resume`, контекст между сообщениями не теряется.
+4. Это **не та же сессия**, что в VS Code. Это отдельный диалог с Claude
+   через CLI, но с доступом к тому же проекту/файлам.
+
+Документация архитектуры и решений — в `docs/agent/` (для AI-ассистента,
+но человекочитаема) и `docs/context7/` (заметки по библиотекам).
+
+---
+
+## Отдельное
+
+- Все тайлы — процедурные (нарисованы кодом), не художественные ассеты.
+- Один сеттинг на старте (Fallout). Палитры расширяемы через `src/tiles/`.
+- Карты сохраняются в собственном JSON-формате (текущая версия схемы — v3).
+
+---
+
+## Лицензия
+
+MIT (на сам код). Личный pet-проект, не претендую на серьёзный продукт.

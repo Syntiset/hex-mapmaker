@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { Modal, Tabs, Stack, Group, Text, Kbd, Box, SimpleGrid, UnstyledButton, Alert } from "@mantine/core";
 import { useThemeStore, type AppTheme } from "../store/themeStore";
 
 interface Props {
@@ -17,73 +18,79 @@ type Tab = "desktop" | "touch" | "themes";
 export function HelpModal({ open, onClose }: Props) {
   const [tab, setTab] = useState<Tab>(() => (isCoarsePointer() ? "touch" : "desktop"));
 
-  useEffect(() => {
-    if (!open) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
-
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h2>Управление</h2>
-          <button className="modal-close" onClick={onClose} title="Закрыть (Esc)">×</button>
-        </div>
-        <div className="modal-tabs">
-          <button className={tab === "desktop" ? "active" : ""} onClick={() => setTab("desktop")}>🖥 ПК / мышь</button>
-          <button className={tab === "touch"   ? "active" : ""} onClick={() => setTab("touch")}>📱 Тач / планшет</button>
-          <button className={tab === "themes"  ? "active" : ""} onClick={() => setTab("themes")}>🎨 Темы</button>
-        </div>
-        <div className="modal-body">
-          {tab === "desktop" && <DesktopHelp />}
-          {tab === "touch"   && <TouchHelp />}
-          {tab === "themes"  && <ThemesTab />}
-        </div>
-      </div>
-    </div>
+    <Modal
+      opened={open}
+      onClose={onClose}
+      size="lg"
+      title={<Text fw={700} c="radiation" size="sm" style={{ letterSpacing: 2, textTransform: "uppercase" }}>Управление</Text>}
+      overlayProps={{ backgroundOpacity: 0.75, blur: 2 }}
+      styles={{ content: { background: "var(--panel)", border: "1px solid var(--accent-2)" } }}
+    >
+      <Tabs value={tab} onChange={(v) => v && setTab(v as Tab)} variant="default" color="radiation">
+        <Tabs.List>
+          <Tabs.Tab value="desktop">🖥 ПК / мышь</Tabs.Tab>
+          <Tabs.Tab value="touch">📱 Тач / планшет</Tabs.Tab>
+          <Tabs.Tab value="themes">🎨 Темы</Tabs.Tab>
+        </Tabs.List>
+
+        <Tabs.Panel value="desktop" pt="md"><DesktopHelp /></Tabs.Panel>
+        <Tabs.Panel value="touch" pt="md"><TouchHelp /></Tabs.Panel>
+        <Tabs.Panel value="themes" pt="md"><ThemesTab /></Tabs.Panel>
+      </Tabs>
+    </Modal>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <Box mb="md">
+      <Text size="10px" c="wasteland.4" fw={700} mb={6} pb={4}
+        style={{ textTransform: "uppercase", letterSpacing: 1.5, borderBottom: "1px solid var(--border)" }}>
+        {title}
+      </Text>
+      <Stack gap={4}>{children}</Stack>
+    </Box>
   );
 }
 
 function Row({ keys, desc }: { keys: string; desc: string }) {
   return (
-    <div className="help-row">
-      <kbd>{keys}</kbd>
-      <span>{desc}</span>
-    </div>
+    <Group gap="md" align="center" wrap="nowrap" style={{ borderBottom: "1px solid rgba(44,44,32,0.5)", paddingBottom: 4 }}>
+      <Box w={200} style={{ flexShrink: 0 }}>
+        <Kbd c="radiation" style={{ background: "var(--bg)", borderColor: "var(--border)" }}>{keys}</Kbd>
+      </Box>
+      <Text size="xs" style={{ flex: 1 }}>{desc}</Text>
+    </Group>
   );
 }
 
 function DesktopHelp() {
   return (
     <>
-      <h3>Инструменты</h3>
-      <Row keys="B" desc="Режим «Биом» (окружение). Не сбрасывает текущий инструмент — оставляет paint/erase." />
-      <Row keys="T" desc="Режим «Тайл» (объект/иконка). Аналогично — режим, не инструмент." />
-      <Row keys="R" desc="Инструмент «Дорога»." />
-      <Row keys="E" desc="Инструмент «Ластик» (стирает биом или тайл по текущему режиму)." />
-      <Row keys="L" desc="Инструмент «Подпись»: клик по гексу → ввод текста." />
-      <Row keys="Space (удерживать)" desc="Временный pan: пока зажат пробел — drag-перенос карты, отпустишь — вернёшься к прежнему инструменту." />
-
-      <h3>Undo / Redo</h3>
-      <Row keys="Ctrl + Z" desc="Отменить последнее действие." />
-      <Row keys="Ctrl + Y" desc="Повторить отменённое." />
-      <Row keys="Ctrl + Shift + Z" desc="Альтернативный redo." />
-
-      <h3>Мышь</h3>
-      <Row keys="ЛКМ + drag" desc="Рисовать выбранным инструментом по гексам." />
-      <Row keys="ПКМ или СКМ + drag" desc="Pan карты (без переключения инструмента)." />
-      <Row keys="Колёсико" desc="Зум вокруг курсора." />
-      <Row keys="Hover в палитре" desc="Превью биома/тайла во всплывающем окне." />
-
-      <h3>Зум-кнопки (правый-нижний угол)</h3>
-      <Row keys="1× / 2× / 4×" desc="Пресеты масштаба, центрируют вокруг текущего центра viewport." />
-      <Row keys="Fit" desc="Вписать всю карту в видимую область." />
+      <Section title="Инструменты">
+        <Row keys="B" desc="Режим «Биом» (окружение). Не сбрасывает текущий инструмент — оставляет paint/erase." />
+        <Row keys="T" desc="Режим «Тайл» (объект/иконка). Аналогично — режим, не инструмент." />
+        <Row keys="R" desc="Инструмент «Дорога»." />
+        <Row keys="E" desc="Инструмент «Ластик» (стирает биом или тайл по текущему режиму)." />
+        <Row keys="L" desc="Инструмент «Подпись»: клик по гексу → ввод текста." />
+        <Row keys="Space (удерживать)" desc="Временный pan: пока зажат пробел — drag-перенос карты." />
+      </Section>
+      <Section title="Undo / Redo">
+        <Row keys="Ctrl + Z" desc="Отменить последнее действие." />
+        <Row keys="Ctrl + Y" desc="Повторить отменённое." />
+        <Row keys="Ctrl + Shift + Z" desc="Альтернативный redo." />
+      </Section>
+      <Section title="Мышь">
+        <Row keys="ЛКМ + drag" desc="Рисовать выбранным инструментом по гексам." />
+        <Row keys="ПКМ или СКМ + drag" desc="Pan карты (без переключения инструмента)." />
+        <Row keys="Колёсико" desc="Зум вокруг курсора." />
+        <Row keys="Hover в палитре" desc="Превью биома/тайла во всплывающем окне." />
+      </Section>
+      <Section title="Зум-кнопки">
+        <Row keys="1× / 2× / 4×" desc="Пресеты масштаба, центрируют вокруг текущего центра viewport." />
+        <Row keys="Fit" desc="Вписать всю карту в видимую область." />
+      </Section>
     </>
   );
 }
@@ -91,86 +98,79 @@ function DesktopHelp() {
 function TouchHelp() {
   return (
     <>
-      <h3>Жесты по карте</h3>
-      <Row keys="Один палец, drag" desc="Рисовать выбранным инструментом (кисть / ластик / дорога)." />
-      <Row keys="Два пальца, pinch" desc="Зум карты вокруг центра жеста. Если случайно начал рисовать — действие откатится при появлении второго пальца." />
-      <Row keys="Два пальца, drag" desc="Pan карты (получается «бесплатно» через midpoint двухпальцевого жеста)." />
-      <Row keys="Кнопка «✋ Перенос»" desc="Если мешает рисование — переключись на этот инструмент: одним пальцем будет двигать карту." />
-
-      <h3>Палитра (в боковой панели)</h3>
-      <Row keys="Тап по биому/тайлу" desc="Выбрать активным. Не меняет инструмент: если был ластик — стирает выбранный тип." />
-      <Row keys="Long-press (~0.5 сек)" desc="Превью биома/тайла поверх активного биома. Тап вне превью — закрыть." />
-      <Row keys="Табы категорий" desc="Тайлы сгруппированы (Поселения / Руины / Подземелья / …). «Все» — без фильтра." />
-
-      <h3>UI / экспорт</h3>
-      <Row keys="Зум-кнопки (правый-нижний)" desc="1× / 2× / 4× / Fit вместо pinch'а если нужна точная кратность." />
-      <Row keys="Недавние ▾" desc="Последние 5 сохранённых/открытых карт хранятся в браузере." />
-      <Row keys="Сохранить / Экспорт PNG" desc="Скачивает файл — на iOS/Android попадёт в «Загрузки»." />
-
-      <h3>Если что-то идёт криво</h3>
-      <div className="help-note">
-        Тач-устройства различаются: какие-то жесты могут конфликтовать с системными (свайп от края, scroll). Если карта «не двигается» — попробуй инструмент «✋ Перенос» из тулбара. Если что-то стало стираться невпопад — Ctrl+Z аналогами не доберёшься, но кнопка «↶ Отмена» в TopBar работает.
-      </div>
+      <Section title="Жесты по карте">
+        <Row keys="Один палец, drag" desc="Рисовать выбранным инструментом (кисть / ластик / дорога)." />
+        <Row keys="Два пальца, pinch" desc="Зум карты вокруг центра жеста." />
+        <Row keys="Два пальца, drag" desc="Pan карты." />
+        <Row keys="Кнопка «Перенос»" desc="Если мешает рисование — переключись на этот инструмент." />
+      </Section>
+      <Section title="Палитра">
+        <Row keys="Тап по биому/тайлу" desc="Выбрать активным." />
+        <Row keys="Long-press (~0.5 сек)" desc="Превью поверх активного биома." />
+        <Row keys="Табы категорий" desc="Тайлы сгруппированы по типам. «Все» — без фильтра." />
+      </Section>
+      <Section title="UI / экспорт">
+        <Row keys="Зум-кнопки" desc="1× / 2× / 4× / Fit вместо pinch'а." />
+        <Row keys="Недавние ▾" desc="Последние 5 карт хранятся в браузере." />
+        <Row keys="Сохранить / Экспорт PNG" desc="Скачивает файл — на iOS/Android попадёт в «Загрузки»." />
+      </Section>
+      <Alert color="wasteland" variant="light" mt="md">
+        Тач-устройства различаются: какие-то жесты могут конфликтовать с системными. Если карта «не двигается» — попробуй инструмент «Перенос» из тулбара.
+      </Alert>
     </>
   );
 }
 
 const THEMES: { id: AppTheme; label: string; desc: string; preview: [string, string, string] }[] = [
-  {
-    id: "default",
-    label: "Стандартная",
-    desc: "Тёмный военный стиль. Зелёный акцент.",
-    preview: ["#0e0e0a", "#1c1c14", "#6fdc4a"],
-  },
-  {
-    id: "night",
-    label: "Ночная",
-    desc: "Глубокий синий. Меньше контраста — для игры в темноте.",
-    preview: ["#06080f", "#0e1120", "#5aaae8"],
-  },
-  {
-    id: "fallout",
-    label: "Fallout",
-    desc: "CRT-зелень, scanlines, ржавые границы.",
-    preview: ["#080c06", "#141a0e", "#7ae040"],
-  },
+  { id: "default", label: "Стандартная", desc: "Тёмный военный стиль. Зелёный акцент.", preview: ["#0e0e0a", "#1c1c14", "#6fdc4a"] },
+  { id: "night",   label: "Ночная",      desc: "Глубокий синий. Меньше контраста.",     preview: ["#06080f", "#0e1120", "#5aaae8"] },
+  { id: "fallout", label: "Fallout",     desc: "CRT-зелень, scanlines, ржавые границы.", preview: ["#080c06", "#141a0e", "#7ae040"] },
 ];
 
 function ThemesTab() {
   const { theme, setTheme } = useThemeStore();
   return (
     <>
-      <h3>Тема интерфейса</h3>
-      <div className="theme-grid">
-        {THEMES.map((t) => (
-          <button
-            key={t.id}
-            className={"theme-card" + (theme === t.id ? " active" : "")}
-            onClick={() => setTheme(t.id)}
-          >
-            <canvas
-              className="theme-preview"
-              width={48}
-              height={32}
-              ref={(el) => {
-                if (!el) return;
-                const ctx = el.getContext("2d")!;
-                ctx.fillStyle = t.preview[0];
-                ctx.fillRect(0, 0, 48, 32);
-                ctx.fillStyle = t.preview[1];
-                ctx.fillRect(4, 4, 40, 18);
-                ctx.fillStyle = t.preview[2];
-                ctx.fillRect(4, 26, 40, 3);
-              }}
-            />
-            <strong>{t.label}</strong>
-            <span className="theme-desc">{t.desc}</span>
-          </button>
-        ))}
-      </div>
-      <div className="help-note" style={{ marginTop: 14 }}>
+      <Section title="Тема интерфейса">
+        <SimpleGrid cols={3} spacing="sm">
+          {THEMES.map((t) => {
+            const active = theme === t.id;
+            return (
+              <UnstyledButton
+                key={t.id}
+                onClick={() => setTheme(t.id)}
+                style={{
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+                  padding: "12px 8px",
+                  border: `2px solid ${active ? "var(--accent-2)" : "var(--border)"}`,
+                  background: "var(--bg)",
+                  color: active ? "var(--accent-2)" : "var(--text)",
+                  fontSize: 11,
+                  cursor: "pointer",
+                  transition: "border-color 0.15s",
+                }}
+              >
+                <canvas
+                  width={48} height={32}
+                  style={{ borderRadius: 2, border: "1px solid rgba(255,255,255,0.1)" }}
+                  ref={(el) => {
+                    if (!el) return;
+                    const ctx = el.getContext("2d")!;
+                    ctx.fillStyle = t.preview[0]; ctx.fillRect(0, 0, 48, 32);
+                    ctx.fillStyle = t.preview[1]; ctx.fillRect(4, 4, 40, 18);
+                    ctx.fillStyle = t.preview[2]; ctx.fillRect(4, 26, 40, 3);
+                  }}
+                />
+                <Text size="xs" fw={700}>{t.label}</Text>
+                <Text size="10px" c="dimmed" ta="center" style={{ lineHeight: 1.3 }}>{t.desc}</Text>
+              </UnstyledButton>
+            );
+          })}
+        </SimpleGrid>
+      </Section>
+      <Alert color="wasteland" variant="light">
         Тема сохраняется в браузере и восстанавливается при следующем открытии.
-      </div>
+      </Alert>
     </>
   );
 }

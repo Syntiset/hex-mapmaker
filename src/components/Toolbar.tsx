@@ -1,3 +1,14 @@
+import {
+  Stack,
+  SegmentedControl,
+  SimpleGrid,
+  UnstyledButton,
+  Select,
+  Switch,
+  Text,
+  Tooltip,
+  Divider,
+} from "@mantine/core";
 import { useMapStore, type Tool } from "../store/mapStore";
 
 const TOOLS: { id: Tool; icon: string; label: string; hint: string }[] = [
@@ -23,64 +34,84 @@ export function Toolbar() {
   const toggleFreeHandRoad= useMapStore((s) => s.toggleFreeHandRoad);
 
   return (
-    <div className="toolbar">
-      <div className="mode-toggle">
-        <button
-          className={paintMode === "biome" ? "active" : ""}
-          title="Режим биома — рисует окружение (B)"
-          onClick={() => {
-            setPaintMode("biome");
-            if (tool !== "paint" && tool !== "erase") setTool("paint");
-          }}
-        >Биом</button>
-        <button
-          className={paintMode === "tile" ? "active" : ""}
-          title="Режим тайла — рисует объект/иконку (T)"
-          onClick={() => {
-            setPaintMode("tile");
-            if (tool !== "paint" && tool !== "erase") setTool("paint");
-          }}
-        >Тайл</button>
-      </div>
+    <Stack gap="xs">
+      <SegmentedControl
+        size="xs"
+        fullWidth
+        value={paintMode}
+        onChange={(v) => {
+          setPaintMode(v as "biome" | "tile");
+          if (tool !== "paint" && tool !== "erase") setTool("paint");
+        }}
+        data={[
+          { label: "БИОМ", value: "biome" },
+          { label: "ТАЙЛ", value: "tile" },
+        ]}
+        color="wasteland"
+      />
 
-      <div className="tool-grid">
-        {TOOLS.map((t) => (
-          <button
-            key={t.id}
-            className={"tool-btn" + (tool === t.id ? " active" : "")}
-            title={t.hint}
-            onClick={() => setTool(t.id)}
-          >
-            <span className="tool-icon">{t.icon}</span>
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <SimpleGrid cols={2} spacing={4} verticalSpacing={4}>
+        {TOOLS.map((t) => {
+          const active = tool === t.id;
+          return (
+            <Tooltip key={t.id} label={t.hint} withArrow openDelay={300}>
+              <UnstyledButton
+                onClick={() => setTool(t.id)}
+                className="tool-btn-mantine"
+                data-active={active || undefined}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  padding: "6px 8px",
+                  fontSize: 11,
+                  background: active ? "var(--mantine-color-wasteland-9)" : "var(--panel)",
+                  border: `1px solid ${active ? "var(--accent)" : "var(--border)"}`,
+                  color: active ? "var(--accent)" : "var(--text)",
+                  borderRadius: 1,
+                  cursor: "pointer",
+                  letterSpacing: 0.2,
+                  boxShadow: active ? "inset 0 0 0 1px rgba(111,220,74,0.2)" : "none",
+                }}
+              >
+                <span style={{ fontSize: 14, lineHeight: 1, flexShrink: 0 }}>{t.icon}</span>
+                {t.label}
+              </UnstyledButton>
+            </Tooltip>
+          );
+        })}
+      </SimpleGrid>
 
-      <div className="toolbar-sep" />
+      <Divider variant="dashed" />
 
-      <div className="toolbar-section">
-        <span className="toolbar-label">Тип дороги</span>
-        <select
+      <Stack gap={4}>
+        <Text size="10px" c="dimmed" style={{ textTransform: "uppercase", letterSpacing: 1 }}>Тип дороги</Text>
+        <Select
+          size="xs"
           value={activeRoadId}
-          onChange={(e) => { setActiveRoad(e.target.value); setTool("road"); }}
-        >
-          {roads.map((r) => (
-            <option key={r.id} value={r.id}>{r.name}</option>
-          ))}
-        </select>
-        <label className="toolbar-check">
-          <input type="checkbox" checked={freeHandRoad} onChange={toggleFreeHandRoad} />
-          Free-hand
-        </label>
-      </div>
+          onChange={(v) => { if (v) { setActiveRoad(v); setTool("road"); } }}
+          data={roads.map((r) => ({ value: r.id, label: r.name }))}
+          allowDeselect={false}
+          comboboxProps={{ withinPortal: true }}
+        />
+        <Switch
+          size="xs"
+          label="Free-hand"
+          color="wasteland"
+          checked={freeHandRoad}
+          onChange={toggleFreeHandRoad}
+        />
+      </Stack>
 
-      <div className="toolbar-sep" />
+      <Divider variant="dashed" />
 
-      <label className="toolbar-check">
-        <input type="checkbox" checked={showGrid} onChange={toggleGrid} />
-        Сетка
-      </label>
-    </div>
+      <Switch
+        size="xs"
+        label="Сетка"
+        color="wasteland"
+        checked={showGrid}
+        onChange={toggleGrid}
+      />
+    </Stack>
   );
 }
