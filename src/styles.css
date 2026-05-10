@@ -21,6 +21,8 @@ html, body, #root { height: 100%; margin: 0; background: var(--bg); }
   position: relative;
   overflow: hidden;
   background: #141410;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
 /* Brand text-shadow on the topbar header */

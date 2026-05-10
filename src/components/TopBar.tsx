@@ -9,6 +9,7 @@ import {
   Text,
   Tooltip,
   ActionIcon,
+  Burger,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { modals } from "@mantine/modals";
@@ -20,6 +21,8 @@ import { listRecents, pushRecent, type RecentEntry } from "../io/recents";
 
 interface Props {
   stageRef: React.RefObject<Konva.Stage | null>;
+  sidebarOpen: boolean;
+  onToggleSidebar: () => void;
 }
 
 function formatDate(ms: number): string {
@@ -28,7 +31,7 @@ function formatDate(ms: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function TopBar({ stageRef }: Props) {
+export function TopBar({ stageRef, sidebarOpen, onToggleSidebar }: Props) {
   const grid = useMapStore((s) => s.grid);
   const cells = useMapStore((s) => s.cells);
   const roadPaths = useMapStore((s) => s.roadPaths);
@@ -104,6 +107,13 @@ export function TopBar({ stageRef }: Props) {
 
   return (
     <Group h="100%" px="sm" gap="xs" wrap="nowrap" align="center" className="topbar-mantine">
+      <Burger
+        opened={sidebarOpen}
+        onClick={onToggleSidebar}
+        size="sm"
+        aria-label="Скрыть/показать панель"
+      />
+
       <Group gap={6} wrap="nowrap">
         <Text fw={700} c="wasteland.4" size="sm" style={{ letterSpacing: 1.5, textTransform: "uppercase", textShadow: "0 0 8px rgba(111,220,74,0.45)" }}>
           ⚙ Hex Map Maker
@@ -112,10 +122,12 @@ export function TopBar({ stageRef }: Props) {
 
       <Divider orientation="vertical" />
 
-      <Group gap={6} wrap="nowrap">
-        <NumberInput size="xs" w={70} min={1} max={200} label="Кол" value={cols} onChange={(v) => setCols(typeof v === "number" ? v : +v)} />
-        <NumberInput size="xs" w={70} min={1} max={200} label="Стр" value={rows} onChange={(v) => setRows(typeof v === "number" ? v : +v)} />
-        <Button size="xs" variant="default" onClick={handleNew} mt={18}>Новая</Button>
+      <Group gap={6} wrap="nowrap" align="center">
+        <Text size="xs" c="dimmed">Кол</Text>
+        <NumberInput size="xs" w={60} min={1} max={200} value={cols} onChange={(v) => setCols(typeof v === "number" ? v : +v)} hideControls />
+        <Text size="xs" c="dimmed">Стр</Text>
+        <NumberInput size="xs" w={60} min={1} max={200} value={rows} onChange={(v) => setRows(typeof v === "number" ? v : +v)} hideControls />
+        <Button size="xs" variant="default" onClick={handleNew}>Новая</Button>
       </Group>
 
       <Divider orientation="vertical" />

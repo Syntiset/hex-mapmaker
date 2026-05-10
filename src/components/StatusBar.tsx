@@ -1,4 +1,4 @@
-import { Group, Text, Button, Divider } from "@mantine/core";
+import { Group, Text, Button, Divider, Box } from "@mantine/core";
 import { useMapStore } from "../store/mapStore";
 
 interface Props {
@@ -14,28 +14,41 @@ export function StatusBar({ hoverKey, onOpenHelp }: Props) {
   const tile = cell?.tileId ? tiles.find((t) => t.id === cell.tileId) : undefined;
 
   return (
-    <Group h="100%" gap={0} px={0} wrap="nowrap" align="center" style={{ fontSize: 11 }}>
-      <StatusItem><Text component="span" c="wasteland.4">✦ <b style={{ fontWeight: "normal" }}>{tool}</b></Text></StatusItem>
-      <StatusItem>Гекс: <Text component="span" c="wasteland.4" fw="normal">{hoverKey ?? "—"}</Text></StatusItem>
-      <StatusItem>Тайл: <Text component="span" c="wasteland.4" fw="normal">{tile?.name ?? "—"}</Text></StatusItem>
-      {cell?.label && <StatusItem>«{cell.label}»</StatusItem>}
-      <Text size="10px" c="#484838" ml="auto" pr="sm" style={{ whiteSpace: "nowrap" }}>
-        B/T режим · R дорога · E ластик · L подпись · Space pan · Ctrl+Z/Y
-      </Text>
+    <Group h="100%" gap={0} wrap="nowrap" align="stretch" style={{ fontSize: 11 }}>
+      <Item>
+        <Text size="11px" c="wasteland.4" span>✦&nbsp;{tool}</Text>
+      </Item>
+      <Item>
+        <Text size="11px" c="dimmed" span>Гекс:&nbsp;</Text>
+        <Text size="11px" c="wasteland.4" span>{hoverKey ?? "—"}</Text>
+      </Item>
+      <Item>
+        <Text size="11px" c="dimmed" span>Тайл:&nbsp;</Text>
+        <Text size="11px" c="wasteland.4" span>{tile?.name ?? "—"}</Text>
+      </Item>
+      {cell?.label && (
+        <Item>
+          <Text size="11px" c="dimmed" span>«{cell.label}»</Text>
+        </Item>
+      )}
+      <Box style={{ flex: 1 }} />
+      <Box px="sm" style={{ display: "flex", alignItems: "center", whiteSpace: "nowrap" }}>
+        <Text size="10px" c="dimmed">B/T режим · R дорога · E ластик · L подпись · Space pan · Ctrl+Z/Y</Text>
+      </Box>
       <Divider orientation="vertical" />
-      <Button variant="subtle" size="xs" radius={0} onClick={onOpenHelp} h="100%" style={{ height: 28 }}>
+      <Button variant="subtle" color="gray" size="xs" radius={0} onClick={onOpenHelp} h="100%">
         ? Помощь
       </Button>
     </Group>
   );
 }
 
-function StatusItem({ children }: { children: React.ReactNode }) {
+function Item({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <Group gap={6} px="sm" h={28} align="center" wrap="nowrap" c="dimmed" style={{ whiteSpace: "nowrap" }}>
+      <Box px="sm" style={{ display: "flex", alignItems: "center", whiteSpace: "nowrap" }}>
         {children}
-      </Group>
+      </Box>
       <Divider orientation="vertical" />
     </>
   );

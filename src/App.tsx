@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import type Konva from "konva";
-import { AppShell, ActionIcon, Group, Tooltip, Box, Text } from "@mantine/core";
+import { AppShell, ActionIcon, Group, Box, Text } from "@mantine/core";
 import { TopBar } from "./components/TopBar";
 import { Toolbar } from "./components/Toolbar";
 import { TilePalette } from "./components/TilePalette";
@@ -101,7 +101,7 @@ export default function App() {
       padding={0}
     >
       <AppShell.Header>
-        <TopBar stageRef={stageRef} />
+        <TopBar stageRef={stageRef} sidebarOpen={sidebarOpen} onToggleSidebar={() => setSidebarOpen((o) => !o)} />
       </AppShell.Header>
 
       <AppShell.Navbar p="xs" className="left">
@@ -111,27 +111,6 @@ export default function App() {
       </AppShell.Navbar>
 
       <AppShell.Main style={{ position: "relative", overflow: "hidden" }}>
-        <Tooltip label={sidebarOpen ? "Скрыть панель" : "Показать панель"} position="right">
-          <ActionIcon
-            variant="default"
-            size="md"
-            onClick={() => setSidebarOpen((o) => !o)}
-            style={{
-              position: "absolute",
-              top: 8,
-              left: 0,
-              zIndex: 50,
-              borderRadius: "0 2px 2px 0",
-              borderLeft: "none",
-              height: 36,
-              width: 18,
-              minWidth: 18,
-            }}
-          >
-            <Text size="10px">{sidebarOpen ? "◀" : "▶"}</Text>
-          </ActionIcon>
-        </Tooltip>
-
         <Box ref={containerRef} className="canvas-host" style={{ position: "absolute", inset: 0 }}>
           <HexGridCanvas
             ref={stageRef}
