@@ -1,43 +1,63 @@
 # 07_handoff.md
 
-## Что было сделано (последняя сессия, 2026-05-07 v1.3.0)
+## Что было сделано (последняя сессия, 2026-05-11, v1.7.0.0.0)
 
-QoL-пакет из 6 пунктов из `08_ideas.md`, реализован одной серией:
+Большой апгрейд UI + новая система тем + WebGL пост-эффект.
 
-1. **Hotkeys** в `src/App.tsx` — клавиши инструментов (B/T/R/E/L), Space-hold pan, цифры 1–9 для палитры. Ctrl+Z/Y уже были, оставлены.
-2. **Zoom presets + Fit** — view-state поднят в App, overlay-кнопки в `canvas-host`. `ViewState` экспортируется из `HexGridCanvas`.
-3. **Категории тайлов** — `FALLOUT_TILE_CATEGORIES` (7 групп) в `src/tiles/fallout.ts`, таб-бар в `TilePalette` со state `category`.
-4. **Hover preview** — фиксированный popup 140px на курсоре, для биомов и тайлов.
-5. **Recent files** — `src/io/recents.ts` (localStorage), dropdown в `TopBar`, до 5 записей.
-6. **Touch pinch-zoom** — `pointersRef` + `pinchRef` в `HexGridCanvas`, `touch-action: none` на Stage.
+### Theme registry (новая архитектура)
+- `src/themes/types.ts` — интерфейсы `ThemeDecorations` (слоты) и `ThemeDef`.
+- `src/themes/registry.ts` — массив `THEMES`, хук `useThemeDecorations()`.
+- `src/themes/terminal.tsx` — 3 React-компонента-декорации для CRT темы.
+- `AppTheme` тип расширен: добавлен `"terminal"`.
+- `HelpModal` читает темы из реестра (4 карточки автоматически).
+
+### Тема Fallout — декорации
+- L-скобы в углах header/navbar/footer + заклёпки + hazard-полоса. Через multi-background, не трогая Mantine `position: fixed`.
+
+### Тема Terminal — RobCo CRT
+- Цвета: фосфор `#88ff60`, металл `#1c2418`, янтарь `#f8d840`.
+- Корпус: эмбосс на header/navbar/footer, вертикальная вентиляция в хедере, 4 knob в углах сайдбара (SVG), 3 заклёпки между правыми knob.
+- POWER LED в футере с пульсацией.
+- Boot-последовательность «> ROBCO INDUSTRIES…» один раз за сессию.
+- Канвас как CRT-экран через WebGL шейдер.
+
+### WebGL CRT post-effect
+- `src/render/CRTOverlay.tsx` — оверлей `<canvas>` поверх Konva. RAF копирует Konva-Layer canvas'ы на offscreen composite, грузит как WebGL текстуру, рисует фул-скрин квад с шейдером.
+- Шейдер: barrel `0.12`, chromatic `0.003`, scanline `0.14`, glow на ярких пикселях, виньетка, blend полупрозрачных пикселей источника с `u_bg` чтобы Konva unifying-tint (sand alpha 0.10) не выходил как opaque.
+- Inverse coord transform: monkey-patch `stage.getPointerPosition` применяет `barrelForward()` — клики попадают в визуально-кликнутый хекс.
+
+### Багфиксы за цикл
+- Скролл навбара через `AppShell.Section grow component={ScrollArea}`.
+- Zoom-overlay: `position: fixed` в корне AppShell.
+- Canvas-host позиционирование: `position: fixed` с явными `top/left/right/bottom` (Mantine.Main растянут на весь viewport, `inset:0` попадал в viewport).
+- ResizeObserver на canvas-host — Konva ловит каждый кадр CSS-анимации сайдбара.
+- StatusBar переписан: левые айтемы tool/hex/tile теперь видны.
+- Burger в TopBar заменил невидимый ActionIcon.
 
 ## На чём остановились
-- v1.3.0, билд зелёный (`npm run build`).
-- В браузере вживую не тестировал — пользователь обещал прокатать сам.
+- v1.7.0.0.0, билд зелёный.
+- В браузере проверял через Playwright self-check скриншоты.
+- WebGL CRT работает с inverse coord — кликам не врёт (вариант Б из обсуждения).
 
 ## Что проверить следующим шагом
-1. Все хоткеи живые: B/T/R/E/L, 1-9, Space-hold, Ctrl+Z/Y. Особенно проверить, что Space возвращает старый инструмент.
-2. Zoom: 1×/2×/4× центрируют корректно, Fit вмещает полную карту.
-3. Категории палитры: «Все» показывает 35 тайлов, каждая категория — нужное подмножество.
-4. Hover preview не дёргается, не выходит за viewport.
-5. Recent files: save → проявляется в дропдауне; reload страницы — список сохраняется (localStorage).
-6. Touch (если есть тач-устройство): pinch-zoom работает, drag одним пальцем = paint, не скроллит страницу.
+1. Переключение тем default ↔ night ↔ fallout ↔ terminal — все 4 рендерятся без артефактов.
+2. На terminal: hex clicks попадают в правильный хекс (особенно у углов где бочка максимальна).
+3. На terminal: bend и черный bezel видны, но не съедают слишком много экрана.
+4. Boot-overlay при первом заходе на terminal тему. После одного раза не повторяется (sessionStorage).
+5. Resize окна / сворачивание сайдбара — WebGL канвас и хексы синхронно меняют размер.
+6. Производительность на больших картах (100×100+) с включённой terminal темой — RAF compositing layers может быть тяжёлым.
 
-## Backlog (что осталось из `08_ideas.md`)
-- Auto-save в localStorage (страховка от крэша)
-- Brush size > 1
-- Bucket fill
-- Map metadata (title/author/description)
-- Resize map
-- Mini-map / координаты hex / layer toggles
-- Multi-line labels, стили подписей
-- Color-blind palette / High-contrast
+## Backlog
+- Расширить registry: больше слотов декораций (HeaderExtras, NavbarOverlay, MapBackdrop).
+- Темы для конкретных сеттингов (medieval, cyberpunk) — каждая со своими SVG-декорациями.
+- Реальная barrel distortion с инверсной формулой для координат (она уже есть, но проверить точность у самых углов).
+- Auto-save, brush size, bucket fill, map metadata, resize map, mini-map, multi-line labels, high-contrast palette.
 
 ## Полезные файлы
-- `src/App.tsx` — глобальные хоткеи, view-state, fit-to-screen, zoom overlay
-- `src/components/HexGridCanvas.tsx` — controlled view-state через пропы, pinch-zoom
-- `src/components/TilePalette.tsx` — категории + hover preview
-- `src/components/TopBar.tsx` — recent files dropdown
-- `src/io/recents.ts` — localStorage helpers
-- `src/tiles/fallout.ts` — `FALLOUT_TILE_CATEGORIES`
-- `src/styles.css` — `.zoom-overlay`, `.palette-categories`, `.hover-preview`, `.recent-menu`
+- `src/themes/` — types, registry, terminal decorations.
+- `src/render/CRTOverlay.tsx` — WebGL пост-эффект.
+- `src/styles.css` — все темы как `[data-theme="..."]`-блоки.
+- `src/App.tsx` — AppShell layout + слоты декораций.
+- `src/components/StatusBar.tsx` — `rightExtras` prop для inject декораций.
+- `scripts/screenshot*.mjs`, `scripts/debug-*.mjs` — Playwright self-check.
+- `backup/pre-v1.7.0.0.0-*.tar.gz` — снапшот перед коммитом v1.7.0.0.0.

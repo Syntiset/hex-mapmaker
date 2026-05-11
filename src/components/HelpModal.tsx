@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Modal, Tabs, Stack, Group, Text, Kbd, Box, SimpleGrid, UnstyledButton, Alert } from "@mantine/core";
-import { useThemeStore, type AppTheme } from "../store/themeStore";
+import { useThemeStore } from "../store/themeStore";
+import { THEMES } from "../themes/registry";
 
 interface Props {
   open: boolean;
@@ -121,18 +122,12 @@ function TouchHelp() {
   );
 }
 
-const THEMES: { id: AppTheme; label: string; desc: string; preview: [string, string, string] }[] = [
-  { id: "default", label: "Стандартная", desc: "Тёмный военный стиль. Зелёный акцент.", preview: ["#0e0e0a", "#1c1c14", "#6fdc4a"] },
-  { id: "night",   label: "Ночная",      desc: "Глубокий синий. Меньше контраста.",     preview: ["#06080f", "#0e1120", "#5aaae8"] },
-  { id: "fallout", label: "Fallout",     desc: "CRT-зелень, scanlines, ржавые границы.", preview: ["#080c06", "#141a0e", "#7ae040"] },
-];
-
 function ThemesTab() {
   const { theme, setTheme } = useThemeStore();
   return (
     <>
       <Section title="Тема интерфейса">
-        <SimpleGrid cols={3} spacing="sm">
+        <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="sm">
           {THEMES.map((t) => {
             const active = theme === t.id;
             return (

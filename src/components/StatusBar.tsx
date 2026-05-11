@@ -4,9 +4,10 @@ import { useMapStore } from "../store/mapStore";
 interface Props {
   hoverKey: string | null;
   onOpenHelp: () => void;
+  rightExtras?: React.ReactNode;
 }
 
-export function StatusBar({ hoverKey, onOpenHelp }: Props) {
+export function StatusBar({ hoverKey, onOpenHelp, rightExtras }: Props) {
   const cells = useMapStore((s) => s.cells);
   const tiles = useMapStore((s) => s.tiles);
   const tool = useMapStore((s) => s.tool);
@@ -36,6 +37,8 @@ export function StatusBar({ hoverKey, onOpenHelp }: Props) {
         <Text size="10px" c="dimmed">B/T режим · R дорога · E ластик · L подпись · Space pan · Ctrl+Z/Y</Text>
       </Box>
       <Divider orientation="vertical" />
+      {rightExtras}
+      {rightExtras && <Divider orientation="vertical" />}
       <Button variant="subtle" color="gray" size="xs" radius={0} onClick={onOpenHelp} h="100%">
         ? Помощь
       </Button>

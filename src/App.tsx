@@ -10,6 +10,9 @@ import { HexGridCanvas, type ViewState } from "./components/HexGridCanvas";
 import { HelpModal } from "./components/HelpModal";
 import { useMapStore } from "./store/mapStore";
 import { axialToPixel, hexHeight, hexWidth, rectMap } from "./hex/hex";
+import { useThemeDecorations } from "./themes/registry";
+import { useThemeStore } from "./store/themeStore";
+import { CRTOverlay } from "./render/CRTOverlay";
 import "./styles.css";
 
 const NAVBAR_W = 300;
@@ -26,6 +29,9 @@ export default function App() {
     if (typeof window === "undefined") return true;
     return window.innerWidth >= 900;
   });
+  const decor = useThemeDecorations();
+  const themeId = useThemeStore((s) => s.theme);
+  const crtActive = themeId === "terminal";
   const grid = useMapStore((s) => s.grid);
   const [view, setView] = useState<ViewState>(() => ({
     scale: 1,
@@ -66,16 +72,23 @@ export default function App() {
   const [spacePan, setSpacePan] = useState(false);
 
   useEffect(() => {
-    function update() {
-      if (containerRef.current) {
-        const r = containerRef.current.getBoundingClientRect();
-        setSize({ w: r.width, h: r.height });
-      }
-    }
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => {
+      const r = el.getBoundingClientRect();
+      setSize({ w: r.width, h: r.height });
+    };
     update();
+    // ResizeObserver ловит ВСЕ изменения, включая промежуточные кадры
+    // CSS-анимации сайдбара — Konva не остаётся с устаревшим размером.
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
     window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
-  }, [sidebarOpen]);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, []);
 
   useHotkeys("ctrl+z, meta+z", (e) => { e.preventDefault(); undo(); }, { preventDefault: true });
   useHotkeys("ctrl+y, meta+y, ctrl+shift+z, meta+shift+z", (e) => { e.preventDefault(); redo(); }, { preventDefault: true });
@@ -111,8 +124,20 @@ export default function App() {
         </AppShell.Section>
       </AppShell.Navbar>
 
-      <AppShell.Main p={0}>
-        <Box ref={containerRef} className="canvas-host" style={{ position: "absolute", inset: 0, overflow: "hidden" }}>
+      <AppShell.Main p={0} style={{ position: "relative", overflow: "hidden" }}>
+        <Box
+          ref={containerRef}
+          className="canvas-host"
+          style={{
+            position: "fixed",
+            top: HEADER_H,
+            left: sidebarOpen ? NAVBAR_W : 0,
+            right: 0,
+            bottom: FOOTER_H,
+            overflow: "hidden",
+            transition: "left 0.15s ease",
+          }}
+        >
           <HexGridCanvas
             ref={stageRef}
             width={size.w}
@@ -122,6 +147,8 @@ export default function App() {
             setViewState={setView}
             panOverride={spacePan}
           />
+          <CRTOverlay stageRef={stageRef} width={size.w} height={size.h} active={crtActive} />
+          {decor.ScreenOverlay && <decor.ScreenOverlay />}
         </Box>
       </AppShell.Main>
 
@@ -150,10 +177,15 @@ export default function App() {
       </Group>
 
       <AppShell.Footer>
-        <StatusBar hoverKey={hoverKey} onOpenHelp={() => setHelpOpen(true)} />
+        <StatusBar
+          hoverKey={hoverKey}
+          onOpenHelp={() => setHelpOpen(true)}
+          rightExtras={decor.FooterRightExtras ? <decor.FooterRightExtras /> : null}
+        />
       </AppShell.Footer>
 
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+      {decor.BootSequence && <decor.BootSequence />}
     </AppShell>
   );
 }

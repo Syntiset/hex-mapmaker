@@ -1,5 +1,55 @@
 # 04_changelog.md
 
+## 2026-05-11 — v1.7.0.0.0 — Theme registry, Terminal CRT тема, WebGL пост-эффект
+
+### Theme registry (`src/themes/`)
+
+- **`types.ts`:** интерфейсы `ThemeDecorations` (слоты `ScreenOverlay`, `FooterRightExtras`, `BootSequence`) и `ThemeDef`. Открыт для расширения новыми слотами.
+- **`registry.ts`:** массив `THEMES` (default / night / fallout / terminal). Хук `useThemeDecorations()` отдаёт декорации текущей темы из стора. Каждая тема может иметь опциональный объект `decorations` с React-компонентами.
+- **`terminal.tsx`:** 3 декорационных компонента — `TerminalScreenOverlay` (CRT flicker + sweep-полоса развёртки), `TerminalPowerLED` (янтарная пульсирующая LED у правого края футера), `TerminalBootSequence` (одноразовая boot-последовательность RobCo с печатью построчно, dismiss кликом или таймером, состояние в `sessionStorage`).
+- **App.tsx** рендерит слоты из реестра — у тем без декораций ничего не появляется. HelpModal читает темы из реестра вместо локального массива (4 карточки автоматически).
+- **`AppTheme` type** расширен: `"default" | "night" | "fallout" | "terminal"`.
+
+### Fallout тема — декорации
+
+- L-скобы в углах хедера/навбара (`--fo-bracket-tl/tr/bl`), вертикальная цепочка заклёпок на правом краю сайдбара (`--fo-rivet`), жёлто-чёрная hazard-полоса по верху футера (`--fo-hazard`). Реализовано через `multi-background` поверх существующего градиента — НЕ трогает `position: fixed` который Mantine выставляет на header/navbar/footer (предыдущая попытка через `::before` его сломала).
+
+### Terminal тема — CRT-стилизация
+
+- **Цветовая палитра:** фосфорно-зелёный (`#88ff60`), металл-олива для корпуса (`#1c2418`), янтарь для LED (`#f8d840`).
+- **Корпус UI** (header/navbar/footer): эмбосс-градиент (светлый верх → тёмный низ), вертикальная вентиляция по центру хедера, 4 круглых металлических knob в углах сайдбара (SVG с радиальным градиентом и насечкой), 3 заклёпки между правыми knob.
+- **Канвас как CRT-экран** через WebGL пост-эффект (см. ниже).
+
+### WebGL CRT пост-эффект (`src/render/CRTOverlay.tsx`)
+
+- **Шейдер:** бочкообразная дисторсия (`barrel=0.12`, формула `uv + c * barrel * r2`), хроматическая аберрация (R/G/B сэмплятся со сдвигом по `c * chromatic`), сканлайны через `sin(uv.y * res.y * 1.4)`, фосфорный glow на ярких пикселях (`pow(max(col-0.6, 0), 2) * 0.6`), мягкая виньетка. Прозрачные пиксели источника композитятся с `u_bg = #040a04` чтобы не выходить как 100% opaque (Konva unifying tint рисует sand с alpha 0.10 на весь viewport — без альфа-blend в шейдере это давало полосу sand при painting).
+- **Pipeline:** оверлейная `<canvas>` поверх HexGridCanvas, в RAF собирает все Konva-Layer canvas'ы через `drawImage` на offscreen composite-canvas, загружает как WebGL texture, рисует фул-скрин квад с шейдером.
+- **Inverse coord transform (вариант Б из обсуждения):** monkey-patch `stage.getPointerPosition` применяет `barrelForward(x, y, w, h, k)` — точное JS-зеркало формулы шейдера. Клики ловятся ровно по тому хексу, который визуально под курсором. Без патча клики бы попадали в исходные (unwarped) координаты — расхождение до ~10px у углов.
+- **Активность:** только когда `theme === "terminal"`, иначе компонент возвращает `null`.
+
+### Багфиксы из этого цикла
+
+- **Скролл навбара:** `AppShell.Section grow component={ScrollArea}` — длинный список тайлов больше не вылезает за пределы навбара на статусбар.
+- **Zoom-overlay положение:** перенесён из `canvas-host` в корень AppShell с `position: fixed`. Mantine.Main растянут на весь viewport (header/footer у него `position: fixed` сверху), `inset: 0` на canvas-host попадал в viewport — overlay с `bottom: 12` оказывался поверх футера.
+- **Canvas-host позиционирование:** `position: fixed` с явными `top: HEADER_H`, `left: NAVBAR_W * sidebarOpen`, `right: 0`, `bottom: FOOTER_H` — теперь canvas занимает ровно видимую область между UI-планками, скругление визуально работает.
+- **ResizeObserver вместо useEffect-на-sidebarOpen:** Konva ловит каждый кадр CSS-анимации сворачивания сайдбара, не остаётся с устаревшим размером (был баг «справа кусок карты отрезается»).
+- **StatusBar переписан:** `Box` + `Divider` + flex-spacer вместо вложенных `Group` с `c="dimmed"` — левые айтемы (tool / hex / tile) теперь не теряются за хинтом и Помощью.
+- **Burger в TopBar:** замена невидимого ActionIcon в Main на штатный Mantine `Burger` слева в хедере.
+- **TopBar layout:** `NumberInput` без labels (теперь инлайн `Text` рядом) — всё помещается в 44px высоты header'а.
+- **PWA + dist:** убрана временная папка `tmp/` из git, добавлена в `.gitignore`.
+
+### Playwright self-check (`scripts/`)
+
+- `screenshot.mjs` — снимает страницу с заданной темой/областью клипа.
+- `screenshot-noboot.mjs` — то же, но c пред-проставленным `sessionStorage` чтобы boot-overlay не показывался.
+- `annotate-zoom.mjs` — рисует красные круги на углах canvas-host для визуальной верификации скругления/искажений.
+- `debug-radius.mjs`, `debug-overflow.mjs`, `test-collapse.mjs`, `test-paint.mjs` — диагностические скрипты для расследования багов с layout и фильтрами.
+
+### Размер бандла v1.7.0.0.0
+
+- JS: 944 KB (gzip 288 KB) — Mantine + WebGL overlay + theme registry
+- CSS: 220 KB (gzip 32 KB) — добавились декорации тем (SVG data URIs внутри CSS)
+
 ## 2026-05-10 — v1.6.0 — Mantine UI
 
 - **Mantine** установлен (`@mantine/core`, `@mantine/hooks`, `@mantine/notifications`, `@mantine/modals`). `MantineProvider` оборачивает приложение в `src/main.tsx`, `defaultColorScheme="dark"`, кастомные цветовые шкалы `wasteland` и `radiation` (зелёный/жёлтый под текущий стиль).

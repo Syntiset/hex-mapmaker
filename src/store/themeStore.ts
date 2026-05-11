@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type AppTheme = "default" | "night" | "fallout";
+export type AppTheme = "default" | "night" | "fallout" | "terminal";
 
 interface ThemeState {
   theme: AppTheme;

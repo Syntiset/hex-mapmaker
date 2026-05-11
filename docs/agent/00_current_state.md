@@ -22,11 +22,20 @@
 
 ## Внешние зависимости
 - React 19, Vite 8, TypeScript ~6, react-konva, konva, zustand, file-saver.
-- **Mantine** (v8) — `@mantine/core`, `@mantine/hooks`, `@mantine/notifications`, `@mantine/modals`. AppShell, Tooltip, Menu, Modal, SegmentedControl, Tabs, HoverCard, NumberInput, Select, Switch, Notifications.
+- **Mantine** (v8) — `@mantine/core`, `@mantine/hooks`, `@mantine/notifications`, `@mantine/modals`.
+- **Playwright** (dev only) — для self-check скриншотов после изменений UI/CRT.
+
+## Темы (4 шт.)
+- `default` — тёмный военный (исходный).
+- `night` — глубокий синий, низкий контраст.
+- `fallout` — олива, L-скобы в углах, заклёпки, hazard-полоса на футере.
+- `terminal` — RobCo CRT: металл-корпус + 4 круглых knob в углах сайдбара + WebGL пост-эффект (бочка `barrel=0.12`, хроматика, сканлайны, фосфорный glow, чёрный bezel вокруг кривого экрана). Boot-overlay «> ROBCO INDUSTRIES…» один раз за сессию. Янтарный POWER LED в футере.
+- Архитектура расширяемая: `src/themes/registry.ts` + `ThemeDecorations` слоты (`ScreenOverlay`, `FooterRightExtras`, `BootSequence`). Новая тема = `ThemeDef` в массив + опциональный объект декораций.
 
 ## Текущие риски
 - Производительность Konva на больших картах не замерялась.
-- Schema JSON — версия 2, есть миграция с v1 (axial keys → world-pixel points для дорог).
+- WebGL CRT-overlay копирует все Konva-Layer canvas'ы каждый RAF — на 200×200 может быть тяжеловато; не профилировал.
+- Schema JSON — версия 3, есть миграция с v1/v2.
 
 ## Дата обновления
-- 2026-05-10 (v1.6.0)
+- 2026-05-11 (v1.7.0.0.0)
