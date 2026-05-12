@@ -752,9 +752,10 @@ html, body, #root { height: 100%; margin: 0; background: var(--bg); }
 .terminal-sidebar-panel {
   position: absolute;
   inset: 0;
-  /* Pip-Boy-стиль: полноэкранное меню. При закрытии слайдит влево. */
+  /* Pip-Boy-стиль: полноэкранное меню. Slide отключён — анимация
+     CRT-вкл/выкл происходит в offscreen-canvas (см. TerminalSidebarShell). */
   transform: translateX(-100%);
-  transition: transform 320ms ease-out;
+  transition: none;
   will-change: transform;
 }
 .terminal-sidebar-root.is-open .terminal-sidebar-panel {

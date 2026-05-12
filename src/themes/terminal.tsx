@@ -171,6 +171,12 @@ function TerminalSidebarShell({ open, children }: SidebarShellProps) {
   const snapCache = useRef<HTMLCanvasElement | null>(null);
   const snapTimer = useRef<number | null>(null);
   const snapInFlight = useRef(false);
+  // Progress 0..1 для CRT-вкл/выкл анимации:
+  // 0 = экран чёрный, ~0.1 = тонкая горизонтальная линия, 1 = всё видно.
+  const progressRef = useRef(open ? 1 : 0);
+  // displayedOpen лагает за open: остаётся true пока анимация закрытия идёт,
+  // чтобы DOM сайдбара не уехал в translateX(-100%) до завершения CRT-off.
+  const [displayedOpen, setDisplayedOpen] = useState(open);
 
   // Размер canvas-host для offscreen-канваса
   useEffect(() => {
@@ -197,7 +203,9 @@ function TerminalSidebarShell({ open, children }: SidebarShellProps) {
     return () => { compositeRegistry.remove(off); };
   }, []);
 
-  // Отрисовка кэшированного снапшота в offscreen по текущему DOM-положению panel.
+  // Отрисовка кэшированного снапшота в offscreen с CRT-вкл/выкл анимацией.
+  // progress 0 = экран пустой; ~0.1 = тонкая яркая горизонтальная линия;
+  // 1 = снапшот целиком, нормальная яркость.
   function redrawOffscreen() {
     const off = offRef.current;
     const snap = snapCache.current;
@@ -207,16 +215,34 @@ function TerminalSidebarShell({ open, children }: SidebarShellProps) {
     if (!ctx) return;
     const host = panel.closest(".canvas-host") as HTMLElement | null;
     if (!host) return;
+    ctx.clearRect(0, 0, off.width, off.height);
+    const p = progressRef.current;
+    if (p <= 0.001) return;
+
     const hostRect = host.getBoundingClientRect();
     const panelRect = panel.getBoundingClientRect();
-    ctx.clearRect(0, 0, off.width, off.height);
-    ctx.drawImage(
-      snap,
-      Math.round(panelRect.left - hostRect.left),
-      Math.round(panelRect.top - hostRect.top),
-      Math.round(panelRect.width),
-      Math.round(panelRect.height),
-    );
+    const dw = Math.round(panelRect.width);
+    const dh = Math.round(panelRect.height);
+    const dx = Math.round(panelRect.left - hostRect.left);
+    const dy = Math.round(panelRect.top - hostRect.top);
+
+    // CRT power-on/off профиль: линия по X появляется быстро, потом
+    // вертикально разворачивается до полной высоты. Симметричный для off.
+    const sxRaw = Math.min(1, p * 5);            // ширина: достигает 1 при p≈0.2
+    const syRaw = Math.max(0.012, p * 1.4 - 0.4); // высота: 0.012→1 в диапазоне 0.29..1
+    const sx = Math.max(0.02, sxRaw);
+    const sy = Math.min(1, Math.max(0.012, syRaw));
+    const brightness = p < 0.5 ? 1 + (0.5 - p) * 2.4 : 1; // вспышка на старте/конце
+
+    const cx = dx + dw / 2;
+    const cy = dy + dh / 2;
+    ctx.save();
+    if (brightness !== 1) ctx.filter = `brightness(${brightness.toFixed(2)})`;
+    ctx.translate(cx, cy);
+    ctx.scale(sx, sy);
+    ctx.translate(-dw / 2, -dh / 2);
+    ctx.drawImage(snap, 0, 0, dw, dh);
+    ctx.restore();
   }
 
   async function takeSnapshot() {
@@ -262,25 +288,34 @@ function TerminalSidebarShell({ open, children }: SidebarShellProps) {
     return () => mo.disconnect();
   }, []);
 
-  // Анимация slide-in: пока CSS-transition двигает .terminal-sidebar-panel,
-  // requestAnimationFrame перерисовывает offscreen с кэшированным snapshot'ом
-  // по новой DOM-позиции. Бочка применяется WebGL'ом — анимация выглядит
-  // искажённой по той же curve что и весь экран.
+  // CRT-вкл/выкл анимация: progress 0..1 экспонентой движется к таргету.
+  // Под анимацию открытия снапшот пересоздаётся в начале (DOM мгновенно
+  // встаёт в финальную позицию); под закрытие — DOM держим в позиции пока
+  // progress не достигнет 0, потом убираем (displayedOpen=false).
   useEffect(() => {
+    if (open) setDisplayedOpen(true);
     let raf = 0;
-    let frames = 0;
-    const maxFrames = 30; // ~500ms при 60fps
-    const loop = () => {
+    const target = open ? 1 : 0;
+    const speed = 0.18; // высокая скорость — резкий CRT-флэш
+    const tick = () => {
+      const cur = progressRef.current;
+      const next = cur + (target - cur) * speed;
+      if (Math.abs(next - target) < 0.005) {
+        progressRef.current = target;
+        redrawOffscreen();
+        if (target === 0) setDisplayedOpen(false);
+        return;
+      }
+      progressRef.current = next;
       redrawOffscreen();
-      frames++;
-      if (frames < maxFrames) raf = requestAnimationFrame(loop);
+      raf = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(loop);
+    raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [open]);
 
   return (
-    <div className={`terminal-sidebar-root ${open ? "is-open" : ""}`} aria-hidden={!open}>
+    <div className={`terminal-sidebar-root ${displayedOpen ? "is-open" : ""}`} aria-hidden={!open}>
       <div ref={panelRef} className="terminal-sidebar-panel">
         <div className="terminal-sidebar-bg" aria-hidden />
         <div className="terminal-sidebar-content">{children}</div>
