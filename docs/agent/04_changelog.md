@@ -1,5 +1,102 @@
 # 04_changelog.md
 
+## 2026-05-12 — v1.7.0.0.3 — Pip-Boy сайдбар для terminal темы
+
+### Главное: сайдбар Terminal-темы переписан под Pip-Boy 3000
+
+В обычных темах сайдбар остался Mantine'овским (Toolbar + TilePalette).
+Для `terminal` темы он полностью заменён на полноэкранное CLI-меню в духе
+RobCo Pip-Boy. Все CRT-эффекты (бочка, хроматика, сканлайны, glow,
+виньетка) применяются к сайдбару наравне с картой.
+
+### Архитектура `ThemeDecorations` расширена двумя слотами
+
+- **`SidebarShell`** — обёртка сайдбара (анимация/позиционирование/clip).
+  Если не задано, используется `DefaultSidebarShell` (простая slide-in
+  панель слева, ширина 280-340px).
+- **`SidebarContent`** — полная замена содержимого. Если задано,
+  рендерится вместо стандартного Toolbar+TilePalette. Используется когда
+  тема хочет переписать UI в своём стиле.
+
+`src/themes/types.ts` — обновлён интерфейс.
+`src/themes/defaultShell.tsx` — дефолтная обёртка.
+`src/components/Sidebar.tsx` — переключение на theme.SidebarContent если есть.
+
+### Composite registry: внешние канвасы в CRT-композите
+
+- **`src/render/compositeRegistry.ts`** (новый) — глобальный реестр
+  HTMLCanvasElement'ов, которые `CRTOverlay` должен подмешать в композит-
+  текстуру каждый кадр перед применением шейдера.
+- В `CRTOverlay.tsx`:
+  - В `frame()` после Konva-канвасов рисуются все канвасы из реестра.
+  - Они должны быть размера canvas-host и иметь прозрачный фон;
+    непрозрачные пиксели накладываются поверх Konva-композита.
+- Это позволяет тематическим элементам (DOM-сайдбар через html2canvas
+  snapshot) попасть в WebGL-постэффект и получить тот же барель.
+
+### TerminalSidebarShell — snapshot pipeline
+
+`src/themes/terminal.tsx → TerminalSidebarShell`:
+
+- Контент рендерится в DOM (`.terminal-sidebar-panel`) под WebGL'ом (z:2 vs
+  z:3) — пользователь визуально не видит DOM, видит только барель-
+  обработанную копию через шейдер.
+- `html2canvas-pro` снимает живой DOM сайдбара по MutationObserver +
+  debounce 60ms + scale:2 для чёткости текста.
+- Snapshot хранится в кэше, копируется в offscreen-канвас размера
+  canvas-host (зарегистрирован в `compositeRegistry`).
+- `redrawOffscreen()` применяет CRT-вкл/выкл трансформ (scaleX/scaleY +
+  brightness) — даёт характерный Fallout-эффект открытия/закрытия экрана.
+- Анимация управляется `progressRef` (0→1 на open, 1→0 на close), speed
+  0.18 — короткий резкий CRT-флэш.
+
+### Click-remap в CRTOverlay
+
+`src/render/CRTOverlay.tsx`:
+
+- В дополнение к monkey-patch `stage.getPointerPosition` (для Konva)
+  добавлен document-level capture-handler на `pointerdown/pointerup/click`.
+- Принцип: визуальный клик в (vx, vy) → через forward-distort находим
+  source-точку (sx, sy) → `document.elementFromPoint(sx, sy)` →
+  если попали в `.terminal-sidebar-root`, диспатчим синтетический клик
+  на эту цель с правильными координатами.
+- Без этого механизма тачи промахивались мимо барель-сдвинутых кнопок
+  сайдбара (рос с расстоянием от центра curve).
+
+### TerminalSidebarContent — Pip-Boy полноэкранное меню
+
+`src/themes/TerminalSidebarContent.tsx` (новый):
+
+- Топ-стрипа: `ROBCO MAP EDITOR v1.7` + статы (MODE / TOOL / GRID).
+- Тэб-стрипа: `BIOMES | TILES | TOOLS | ROADS | INFO`.
+- Сплит body: список слева (тап выбирает биом/тайл/инструмент) + sticky
+  preview-блок справа с большим hex-канвасом и описанием.
+- Биом-preview и tile-preview переиспользуют `drawBiomeRich /
+  drawIconEnhanced / pathHex` из `render/drawHex.ts`.
+- Bottom: `> READY_` с мигающим курсором.
+- Все кнопки Mantine выкинуты — чистый монохромный CLI-стиль (моноширинный
+  шрифт, ▶ префикс на активной строке, фосфорный glow через text-shadow).
+
+### Прочие правки
+
+- **html2canvas-pro** добавлен в зависимости (~225KB к бандлу).
+- Сайдбар стартует закрытым во всех темах (раньше открывался автоматически
+  на широких экранах).
+- Наклейка `UNIFIED OPERATING SYSTEM / RobCo Industries` перенесена из
+  `NavbarOverlay` (внутри сайдбара) на корпус терминала — позиционируется
+  в правом нижнем bezel'е, может частично уходить за screen-curve.
+- В CI workflow удалены старые runs, оставлен только последний.
+
+### Что не сделано / отложено
+
+- Boot-typing анимация (построчное раскрытие меню при открытии). Сейчас
+  меню появляется через CRT-флэш целиком — типизирование оставлено
+  на следующую итерацию.
+- Mantine Popover/Select dropdown'ы рендерятся через React Portal в
+  body — их позиция не совпадает с барель-сдвинутой позицией анкера.
+  В terminal сейчас нет таких компонент (CLI всё переписано), но если
+  появятся — нужен будет fix позиционирования.
+
 ## 2026-05-12 — v1.7.0.0.2 — Фикс попадания кликов на устройствах с DPR>1 + GitHub Pages CI
 
 ### Главное: правильная сборка композита Konva-слоёв для CRT-постэффекта

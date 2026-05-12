@@ -29,13 +29,17 @@
 - `default` — тёмный военный (исходный).
 - `night` — глубокий синий, низкий контраст.
 - `fallout` — олива, L-скобы в углах, заклёпки, hazard-полоса на футере.
-- `terminal` — RobCo CRT: металл-корпус + 4 круглых knob в углах сайдбара + WebGL пост-эффект (бочка `barrel=0.12`, хроматика, сканлайны, фосфорный glow, чёрный bezel вокруг кривого экрана). Boot-overlay «> ROBCO INDUSTRIES…» один раз за сессию. Янтарный POWER LED в футере.
-- Архитектура расширяемая: `src/themes/registry.ts` + `ThemeDecorations` слоты (`ScreenOverlay`, `FooterRightExtras`, `BootSequence`). Новая тема = `ThemeDef` в массив + опциональный объект декораций.
+- `terminal` — RobCo CRT: металл-корпус + WebGL пост-эффект (бочка `barrel=0.35`, хроматика, сканлайны, фосфорный glow, DOM-bezel с clip-path по barrel-curve). Boot-overlay «> ROBCO INDUSTRIES…» один раз за сессию. Янтарный POWER LED в футере. Наклейка «UNIFIED OPERATING SYSTEM / RobCo Industries» на правом нижнем bezel'е.
+  - **Pip-Boy сайдбар (v1.7.0.0.3):** заменяет стандартный Mantine-сайдбар. Полноэкранный CLI-интерфейс с табами BIOMES/TILES/TOOLS/ROADS/INFO, список слева + большое hex-превью справа. Реализован через html2canvas-pro snapshot → offscreen canvas → CRTOverlay композит → WebGL барель применяется ко всему сайдбару как к карте. CRT power-on/off анимация открытия/закрытия (вспышка → линия → разворот по вертикали).
+  - Клик-ремаппер в `CRTOverlay.tsx`: визуальный клик по сайдбару конвертируется через forward-barrel в source-точку, синтетический click диспатчится на DOM-кнопку. Без него тач промахивается мимо барель-сдвинутых кнопок.
+- Архитектура расширяемая: `src/themes/registry.ts` + `ThemeDecorations` слоты (`ScreenOverlay`, `FooterRightExtras`, `BootSequence`, `NavbarOverlay`, **`SidebarShell`** — обёртка с анимацией, **`SidebarContent`** — полная замена содержимого). Новая тема = `ThemeDef` в массив + опциональный объект декораций.
 
 ## Текущие риски
 - Производительность Konva на больших картах не замерялась.
 - WebGL CRT-overlay копирует все Konva-Layer canvas'ы каждый RAF — на 200×200 может быть тяжеловато; не профилировал.
+- html2canvas snapshot сайдбара в terminal — 100-300ms на изменение state, может быть заметно на слабых планшетах.
+- Mantine Popover/Select dropdown'ы рендерятся через React Portal в body — их позиция вычисляется от source-coord DOM, что НЕ совпадает с визуальной (барель-сдвинутой) позицией кнопки в Pip-Boy сайдбаре. Для terminal эти компоненты сейчас не используются (CLI всё переписано), но могут всплыть позже.
 - Schema JSON — версия 3, есть миграция с v1/v2.
 
 ## Дата обновления
-- 2026-05-12 (v1.7.0.0.2)
+- 2026-05-12 (v1.7.0.0.3)
