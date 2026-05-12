@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ThemeDecorations, SidebarShellProps } from "./types";
-import { buildBezelClipPath } from "../render/barrelPath";
+import { buildBezelClipPath, buildBarrelScreenPath } from "../render/barrelPath";
 
 /**
  * Полноэкранный overlay поверх канваса:
@@ -152,21 +152,45 @@ function TerminalBootSequence() {
 }
 
 /**
- * Сайдбар внутри CRT-экрана. Слайдит из-за левого края, не толкая канву.
- * Фон тёмно-зелёный фосфор + сканлайны + правый край с глоу.
- * Корпус (bezel) рисуется поверх и автоматически скрывает углы, выходящие
- * за barrel-curve экрана — отдельный clip-path не нужен.
+ * Сайдбар внутри CRT-экрана. Сам контейнер занимает всю площадь canvas-host
+ * и клипается тем же barrel-curve что и экран — благодаря этому панель не
+ * лезет в зону bezel. Внутри — позиционированная панель ширины 340px со
+ * слайд-анимацией. Curve trims углы панели по форме экрана.
  */
 function TerminalSidebarShell({ open, children }: SidebarShellProps) {
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  const barrel = 0.35;
+
+  useEffect(() => {
+    const host = document.querySelector(".canvas-host") as HTMLElement | null;
+    if (!host) return;
+    const update = () => {
+      const r = host.getBoundingClientRect();
+      setSize({ w: r.width, h: r.height });
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(host);
+    return () => ro.disconnect();
+  }, []);
+
+  const clipPath = useMemo(() => {
+    if (size.w <= 0 || size.h <= 0) return undefined;
+    return `path('${buildBarrelScreenPath(barrel, size.w, size.h)}')`;
+  }, [barrel, size.w, size.h]);
+
   return (
     <div
-      className={`app-sidebar terminal-sidebar ${open ? "is-open" : ""}`}
+      className={`terminal-sidebar-root ${open ? "is-open" : ""}`}
       aria-hidden={!open}
+      style={clipPath ? { clipPath, WebkitClipPath: clipPath } : undefined}
     >
-      <div className="terminal-sidebar-bg" aria-hidden />
-      <div className="terminal-sidebar-scanlines" aria-hidden />
-      <div className="terminal-sidebar-content">{children}</div>
-      <div className="terminal-sidebar-edge" aria-hidden />
+      <div className="terminal-sidebar-panel">
+        <div className="terminal-sidebar-bg" aria-hidden />
+        <div className="terminal-sidebar-scanlines" aria-hidden />
+        <div className="terminal-sidebar-content">{children}</div>
+        <div className="terminal-sidebar-edge" aria-hidden />
+      </div>
     </div>
   );
 }
