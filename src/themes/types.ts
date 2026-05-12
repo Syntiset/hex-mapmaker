@@ -18,6 +18,10 @@ export interface ThemeDecorations {
   /** Обёртка сайдбара — анимация, позиционирование, тематический фон/clip-path.
    *  Если не задано, используется DefaultSidebarShell (slide-in panel). */
   SidebarShell?: React.FC<SidebarShellProps>;
+  /** Полная замена содержимого сайдбара. Если задано, рендерится вместо
+   *  стандартного Toolbar+TilePalette. Используется когда тема хочет
+   *  перерисовать UI в своём стиле (например, terminal CLI). */
+  SidebarContent?: React.FC;
 }
 
 export interface ThemeDef {

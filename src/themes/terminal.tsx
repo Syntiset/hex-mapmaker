@@ -3,6 +3,7 @@ import html2canvas from "html2canvas-pro";
 import type { ThemeDecorations, SidebarShellProps } from "./types";
 import { buildBezelClipPath } from "../render/barrelPath";
 import { compositeRegistry } from "../render/compositeRegistry";
+import { TerminalSidebarContent } from "./TerminalSidebarContent";
 
 /**
  * Полноэкранный overlay поверх канваса:
@@ -296,4 +297,5 @@ export const TERMINAL_DECORATIONS: ThemeDecorations = {
   BootSequence: TerminalBootSequence,
   NavbarOverlay: TerminalRobcoSticker,
   SidebarShell: TerminalSidebarShell,
+  SidebarContent: TerminalSidebarContent,
 };
