@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { ThemeDecorations } from "./types";
+import type { ThemeDecorations, SidebarShellProps } from "./types";
 import { buildBezelClipPath } from "../render/barrelPath";
 
 /**
@@ -151,9 +151,30 @@ function TerminalBootSequence() {
   );
 }
 
+/**
+ * Сайдбар внутри CRT-экрана. Слайдит из-за левого края, не толкая канву.
+ * Фон тёмно-зелёный фосфор + сканлайны + правый край с глоу.
+ * Корпус (bezel) рисуется поверх и автоматически скрывает углы, выходящие
+ * за barrel-curve экрана — отдельный clip-path не нужен.
+ */
+function TerminalSidebarShell({ open, children }: SidebarShellProps) {
+  return (
+    <div
+      className={`app-sidebar terminal-sidebar ${open ? "is-open" : ""}`}
+      aria-hidden={!open}
+    >
+      <div className="terminal-sidebar-bg" aria-hidden />
+      <div className="terminal-sidebar-scanlines" aria-hidden />
+      <div className="terminal-sidebar-content">{children}</div>
+      <div className="terminal-sidebar-edge" aria-hidden />
+    </div>
+  );
+}
+
 export const TERMINAL_DECORATIONS: ThemeDecorations = {
   ScreenOverlay: TerminalScreenOverlay,
   FooterRightExtras: TerminalPowerLED,
   BootSequence: TerminalBootSequence,
   NavbarOverlay: TerminalRobcoSticker,
+  SidebarShell: TerminalSidebarShell,
 };

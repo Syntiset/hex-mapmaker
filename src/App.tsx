@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import type Konva from "konva";
-import { AppShell, Button, Group, Box, Text, ScrollArea } from "@mantine/core";
+import { AppShell, Button, Group, Box, Text } from "@mantine/core";
 import { TopBar } from "./components/TopBar";
-import { Toolbar } from "./components/Toolbar";
-import { TilePalette } from "./components/TilePalette";
+import { Sidebar } from "./components/Sidebar";
 import { StatusBar } from "./components/StatusBar";
 import { HexGridCanvas, type ViewState } from "./components/HexGridCanvas";
 import { HelpModal } from "./components/HelpModal";
@@ -12,10 +11,10 @@ import { useMapStore } from "./store/mapStore";
 import { axialToPixel, hexHeight, hexWidth, rectMap } from "./hex/hex";
 import { useThemeDecorations } from "./themes/registry";
 import { useThemeStore } from "./store/themeStore";
+import { DefaultSidebarShell } from "./themes/defaultShell";
 import { CRTOverlay } from "./render/CRTOverlay";
 import "./styles.css";
 
-const NAVBAR_W = 300;
 const HEADER_H = 44;
 const FOOTER_H = 44;
 
@@ -106,10 +105,11 @@ export default function App() {
     return () => window.removeEventListener("blur", onBlur);
   }, []);
 
+  const Shell = decor.SidebarShell ?? DefaultSidebarShell;
+
   return (
     <AppShell
       header={{ height: HEADER_H }}
-      navbar={{ width: NAVBAR_W, breakpoint: "sm", collapsed: { mobile: !sidebarOpen, desktop: !sidebarOpen } }}
       footer={{ height: FOOTER_H }}
     >
       <AppShell.Header>
@@ -121,15 +121,6 @@ export default function App() {
         />
       </AppShell.Header>
 
-      <AppShell.Navbar p="xs" className="left">
-        <AppShell.Section component={ScrollArea} grow scrollbarSize={6} type="hover">
-          <Toolbar />
-          <Box mt="md" />
-          <TilePalette />
-        </AppShell.Section>
-        {decor.NavbarOverlay && <decor.NavbarOverlay />}
-      </AppShell.Navbar>
-
       <AppShell.Main p={0} style={{ position: "relative", overflow: "hidden" }}>
         <Box
           ref={containerRef}
@@ -137,11 +128,10 @@ export default function App() {
           style={{
             position: "fixed",
             top: HEADER_H,
-            left: sidebarOpen ? NAVBAR_W : 0,
+            left: 0,
             right: 0,
             bottom: FOOTER_H,
             overflow: "hidden",
-            transition: "left 0.15s ease",
           }}
         >
           <HexGridCanvas
@@ -155,6 +145,9 @@ export default function App() {
           />
           <CRTOverlay stageRef={stageRef} width={size.w} height={size.h} active={crtActive} />
           {decor.ScreenOverlay && <decor.ScreenOverlay />}
+          <Shell open={sidebarOpen}>
+            <Sidebar />
+          </Shell>
         </Box>
       </AppShell.Main>
 
