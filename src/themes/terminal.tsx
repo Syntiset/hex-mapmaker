@@ -279,7 +279,6 @@ function TerminalSidebarShell({ open, children }: SidebarShellProps) {
     <div className={`terminal-sidebar-root ${open ? "is-open" : ""}`} aria-hidden={!open}>
       <div ref={panelRef} className="terminal-sidebar-panel">
         <div className="terminal-sidebar-bg" aria-hidden />
-        <div className="terminal-sidebar-scanlines" aria-hidden />
         <div className="terminal-sidebar-content">{children}</div>
         <div className="terminal-sidebar-edge" aria-hidden />
       </div>
