@@ -1,5 +1,57 @@
 # 04_changelog.md
 
+## 2026-05-12 — v1.7.0.0.1 — DOM-bezel через clip-path по barrel-curve
+
+Серия точечных правок Terminal темы. Большая часть — переработка того как
+рисуется рамка корпуса CRT.
+
+### Главное: bezel вынесен из шейдера в DOM с curve-following clip-path
+
+Раньше: WebGL фрагмент-шейдер сам рисовал olive-bezel в зоне `outside [0,1]`.
+Это работало, но мешало порядку слоёв — sweep/flicker сидели поверх WebGL
+канваса и попадали на bezel. Двигать слои или клипать sweep к curve было
+тяжело.
+
+Стало:
+- **`src/render/barrelPath.ts`** — новый файл. Содержит `barrelInverse()`
+  (численная инверсия бочки через 8 шагов Newton fixed-point) и
+  `buildBezelClipPath(k, w, h)` — собирает SVG-path по 128 точкам периметра
+  источника (по 32 на сторону) с применением инверс-бочки. Возвращает строку
+  для `clip-path: path('...')`.
+- **Шейдер `CRTOverlay.tsx`** упрощён: для пикселей где `distort(uv)` выходит
+  за `[0,1]` теперь `gl_FragColor.a = 0` (прозрачность). Bezel-вычисления
+  удалены. Внутри `[0,1]` всё как раньше (barrel + chromatic + scanlines +
+  glow + inner-fade).
+- **`<div className="terminal-bezel-frame">`** — новый DOM-слой между WebGL
+  и декорациями. Заполнен olive линейным градиентом (`#2d3821` → `#0e1409`,
+  тот же что был в шейдере). `clip-path: path(evenodd, '...')` с external
+  rect + internal barrel-curve вырезает форму экрана, оставляя видимым
+  только корпус.
+- **ResizeObserver** в `TerminalScreenOverlay` следит за canvas-host и
+  пересчитывает clip-path при resize/изменении сайдбара.
+- **`inset = 1.2%`** сжатие clip-path к центру — DOM-bezel чуть «налезает»
+  на WebGL alpha-edge, закрывая тонкий стык между шейдером и clip-path'ом.
+
+### Прочие фиксы из цикла
+
+- WebGL контекст переключён в `premultipliedAlpha: false` + `gl.enable(BLEND)`
+  + `gl.clearColor(0,0,0,0)` + `gl.clear` в RAF — нужно для корректной
+  прозрачности.
+- Inner-fade в шейдере: чёткий smoothstep по `min(uv, 1-uv)` ширины 10%,
+  alpha-fade узкий (0.2%) только для anti-alias на самой кромке.
+- `.terminal-screen-area` z-index уточнён до 5, `.terminal-bezel-frame` 6,
+  `.terminal-bezel` 7.
+
+### Новая документация
+
+- **`docs/agent/09_terminal_theme_layers.md`** — карта всех слоёв CRT-темы,
+  поток данных от Konva до экрана, формулы distort/inverse, ключевые файлы
+  с описанием ответственности.
+
+### Размер бандла v1.7.0.0.1
+
+- JS 945 KB (gzip 288 KB), CSS 222 KB (gzip 32 KB) — без изменений от v1.7.0.0.0.
+
 ## 2026-05-11 — v1.7.0.0.0 — Theme registry, Terminal CRT тема, WebGL пост-эффект
 
 ### Theme registry (`src/themes/`)

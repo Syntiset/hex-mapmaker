@@ -9,7 +9,6 @@ import {
   Text,
   Tooltip,
   ActionIcon,
-  Burger,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { modals } from "@mantine/modals";
@@ -23,6 +22,7 @@ interface Props {
   stageRef: React.RefObject<Konva.Stage | null>;
   sidebarOpen: boolean;
   onToggleSidebar: () => void;
+  onOpenHelp: () => void;
 }
 
 function formatDate(ms: number): string {
@@ -31,7 +31,7 @@ function formatDate(ms: number): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function TopBar({ stageRef, sidebarOpen, onToggleSidebar }: Props) {
+export function TopBar({ stageRef, sidebarOpen, onToggleSidebar, onOpenHelp }: Props) {
   const grid = useMapStore((s) => s.grid);
   const cells = useMapStore((s) => s.cells);
   const roadPaths = useMapStore((s) => s.roadPaths);
@@ -107,18 +107,17 @@ export function TopBar({ stageRef, sidebarOpen, onToggleSidebar }: Props) {
 
   return (
     <Group h="100%" px="sm" gap="xs" wrap="nowrap" align="center" className="topbar-mantine">
-      <Burger
-        opened={sidebarOpen}
-        onClick={onToggleSidebar}
-        size="sm"
-        aria-label="Скрыть/показать панель"
-      />
-
-      <Group gap={6} wrap="nowrap">
-        <Text fw={700} c="wasteland.4" size="sm" style={{ letterSpacing: 1.5, textTransform: "uppercase", textShadow: "0 0 8px rgba(111,220,74,0.45)" }}>
-          ⚙ Hex Map Maker
-        </Text>
-      </Group>
+      <Tooltip label={sidebarOpen ? "Скрыть панель" : "Показать панель"}>
+        <Button
+          size="xs"
+          variant="default"
+          onClick={onToggleSidebar}
+          className="topbar-toggle"
+          aria-label="Скрыть/показать панель"
+        >
+          {sidebarOpen ? "[X]" : "[≡]"}
+        </Button>
+      </Tooltip>
 
       <Divider orientation="vertical" />
 
@@ -156,9 +155,12 @@ export function TopBar({ stageRef, sidebarOpen, onToggleSidebar }: Props) {
         <Button size="xs" variant="default" onClick={handleExport}>Экспорт PNG</Button>
       </Group>
 
-      <Group gap={4} ml="auto" wrap="nowrap">
+      <Divider orientation="vertical" />
+
+      <Group gap={4} wrap="nowrap">
         <Tooltip label="Отменить (Ctrl+Z)"><ActionIcon variant="default" onClick={undo} size="lg">↶</ActionIcon></Tooltip>
         <Tooltip label="Повторить (Ctrl+Y)"><ActionIcon variant="default" onClick={redo} size="lg">↷</ActionIcon></Tooltip>
+        <Button size="xs" variant="default" className="topbar-help" onClick={onOpenHelp}>? Помощь</Button>
       </Group>
     </Group>
   );

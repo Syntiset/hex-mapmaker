@@ -1,13 +1,13 @@
-import { Group, Text, Button, Divider, Box } from "@mantine/core";
+import { Group, Text, Divider, Box } from "@mantine/core";
 import { useMapStore } from "../store/mapStore";
 
 interface Props {
   hoverKey: string | null;
-  onOpenHelp: () => void;
+  zoomControls?: React.ReactNode;
   rightExtras?: React.ReactNode;
 }
 
-export function StatusBar({ hoverKey, onOpenHelp, rightExtras }: Props) {
+export function StatusBar({ hoverKey, zoomControls, rightExtras }: Props) {
   const cells = useMapStore((s) => s.cells);
   const tiles = useMapStore((s) => s.tiles);
   const tool = useMapStore((s) => s.tool);
@@ -33,15 +33,13 @@ export function StatusBar({ hoverKey, onOpenHelp, rightExtras }: Props) {
         </Item>
       )}
       <Box style={{ flex: 1 }} />
-      <Box px="sm" style={{ display: "flex", alignItems: "center", whiteSpace: "nowrap" }}>
-        <Text size="10px" c="dimmed">B/T режим · R дорога · E ластик · L подпись · Space pan · Ctrl+Z/Y</Text>
-      </Box>
-      <Divider orientation="vertical" />
+      {zoomControls && (
+        <>
+          <Box px="sm" style={{ display: "flex", alignItems: "center" }}>{zoomControls}</Box>
+          <Divider orientation="vertical" />
+        </>
+      )}
       {rightExtras}
-      {rightExtras && <Divider orientation="vertical" />}
-      <Button variant="subtle" color="gray" size="xs" radius={0} onClick={onOpenHelp} h="100%">
-        ? Помощь
-      </Button>
     </Group>
   );
 }

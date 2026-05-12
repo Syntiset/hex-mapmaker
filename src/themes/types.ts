@@ -8,6 +8,8 @@ export interface ThemeDecorations {
   FooterRightExtras?: React.FC;
   /** Один-разовая boot-последовательность при первом монтировании (показ и автодисмисс). */
   BootSequence?: React.FC;
+  /** Абсолютные оверлеи, прикреплённые к UI-планкам — стикеры, наклейки. */
+  NavbarOverlay?: React.FC;
 }
 
 export interface ThemeDef {

@@ -40,31 +40,35 @@ vec2 distort(vec2 uv) {
 
 void main() {
   vec2 uv = distort(v_uv);
+  // За пределами [0,1] — полностью прозрачно. Bezel теперь рисует DOM через
+  // clip-path по barrel-curve (см. barrelPath.ts).
   if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+    gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
     return;
   }
   vec2 c = uv - 0.5;
   float ca = u_chromatic;
-  vec4 sR = texture2D(u_tex, uv + c * ca);
+  vec4 sR = texture2D(u_tex, clamp(uv + c * ca, 0.0, 1.0));
   vec4 sG = texture2D(u_tex, uv);
-  vec4 sB = texture2D(u_tex, uv - c * ca);
-  // Каждый канал предmultiplied на свою alpha, остатки заливаются bg-цветом.
-  // Это нужно чтобы прозрачные/полупрозрачные пиксели источника (например,
-  // фоновый unifying-tint Konva с alpha 0.10) НЕ выходили как 100% opaque.
+  vec4 sB = texture2D(u_tex, clamp(uv - c * ca, 0.0, 1.0));
   float r = sR.r * sR.a + u_bg.r * (1.0 - sR.a);
   float g = sG.g * sG.a + u_bg.g * (1.0 - sG.a);
-  float b = sB.b * sB.a + u_bg.b * (1.0 - sB.a);
-  vec3 col = vec3(r, g, b);
-  // фосфорный glow на ярких пикселях
-  col += pow(max(col - 0.6, 0.0), vec3(2.0)) * 0.6;
-  // сканлайны
+  float bb = sB.b * sB.a + u_bg.b * (1.0 - sB.a);
+  vec3 col = vec3(r, g, bb);
+  col *= 0.82;
+  col.g += col.g * 0.06;
+  col += pow(max(col - 0.55, 0.0), vec3(2.0)) * 0.7;
   float scan = sin(uv.y * u_res.y * 1.4);
   col *= 1.0 - u_scanline * (0.5 - 0.5 * scan);
-  // лёгкая виньетка (не давит хексы)
   float vig = 1.0 - dot(c, c) * 0.7;
   col *= clamp(vig, 0.0, 1.0);
-  gl_FragColor = vec4(col, 1.0);
+  // Цвет хексов плавно гасим в чёрный у кромки (10% ширины) — скрывает hex-зигзаги.
+  float edgeNear = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+  col *= smoothstep(0.0, 0.10, edgeNear);
+  // Alpha остаётся 1 везде внутри [0,1] — DOM-clip-path кроет всё снаружи.
+  // Узкий smoothstep даёт только anti-alias на 1-2 пикселя кромки.
+  float screenAlpha = smoothstep(0.0, 0.002, edgeNear);
+  gl_FragColor = vec4(col, screenAlpha);
 }`;
 
 function compile(gl: WebGLRenderingContext, type: number, src: string): WebGLShader {
@@ -80,7 +84,7 @@ function compile(gl: WebGLRenderingContext, type: number, src: string): WebGLSha
 }
 
 /** Зеркало шейдера в JS: для точки клика на экране даёт исходную точку,
- *  куда визуально указал курсор. */
+ *  куда визуально указал курсор. Чистая бочка, без scale-смещения. */
 function barrelForward(x: number, y: number, w: number, h: number, k: number) {
   const ux = x / w - 0.5;
   const uy = y / h - 0.5;
@@ -89,7 +93,7 @@ function barrelForward(x: number, y: number, w: number, h: number, k: number) {
   return { x: ((ux + ux * f) + 0.5) * w, y: ((uy + uy * f) + 0.5) * h };
 }
 
-export function CRTOverlay({ stageRef, width, height, active, barrel = 0.12, chromatic = 0.003, scanline = 0.14 }: Props) {
+export function CRTOverlay({ stageRef, width, height, active, barrel = 0.35, chromatic = 0.003, scanline = 0.14 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Применяет инверс-патч на stage.getPointerPosition: Konva получает координаты,
@@ -164,6 +168,10 @@ export function CRTOverlay({ stageRef, width, height, active, barrel = 0.12, chr
     gl.uniform1f(uScan, scanline);
 
     gl.viewport(0, 0, width, height);
+    // Прозрачность за пределами screen-curve — для DOM-bezel на CSS-clip
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    gl.clearColor(0, 0, 0, 0);
 
     // Сборщик исходного канваса: drawImage каждого Konva-Layer на offscreen-canvas
     // (toCanvas() Stage'а медленнее — дёргает toDataURL внутри).
@@ -182,6 +190,7 @@ export function CRTOverlay({ stageRef, width, height, active, barrel = 0.12, chr
         cs.forEach((c) => cctx.drawImage(c as HTMLCanvasElement, 0, 0));
         gl!.bindTexture(gl!.TEXTURE_2D, tex);
         gl!.texImage2D(gl!.TEXTURE_2D, 0, gl!.RGBA, gl!.RGBA, gl!.UNSIGNED_BYTE, composite);
+        gl!.clear(gl!.COLOR_BUFFER_BIT);
         gl!.drawArrays(gl!.TRIANGLE_STRIP, 0, 4);
       }
       requestAnimationFrame(frame);
