@@ -503,9 +503,12 @@ html, body, #root { height: 100%; margin: 0; background: var(--bg); }
    ============================================================ */
 .terminal-sticker {
   position: absolute;
-  right: 8px;
-  bottom: 52px;
-  width: 124px;
+  /* На нижней рамке корпуса терминала, выше правого нижнего винта.
+     Может частично уходить за curve — это нормально, по стилю. */
+  right: -8px;
+  bottom: 58px;
+  width: 110px;
+  transform: rotate(-2deg);
   padding: 5px 8px 6px;
   background: linear-gradient(165deg, #e6d586 0%, #b89a48 100%);
   color: #1c1410;
@@ -513,7 +516,6 @@ html, body, #root { height: 100%; margin: 0; background: var(--bg); }
   font-size: 7.5px;
   line-height: 1.25;
   letter-spacing: 0.3px;
-  transform: rotate(-3deg);
   box-shadow:
     0 1px 0 rgba(0,0,0,0.4),
     0 2px 6px rgba(0,0,0,0.5),
@@ -751,9 +753,10 @@ html, body, #root { height: 100%; margin: 0; background: var(--bg); }
 
 .terminal-sidebar-panel {
   position: absolute;
-  inset: 0;
-  /* Pip-Boy-стиль: полноэкранное меню. Slide отключён — анимация
-     CRT-вкл/выкл происходит в offscreen-canvas (см. TerminalSidebarShell). */
+  /* Pip-Boy-стиль: центрированное окно меню, отступы от краёв
+     canvas-host чтобы было видно корпус терминала вокруг.
+     Top/bottom меньше — интерфейс получается чуть высоким. */
+  inset: 3.5% 9% 3.5% 9%;
   transform: translateX(-100%);
   transition: none;
   will-change: transform;
@@ -828,13 +831,13 @@ html, body, #root { height: 100%; margin: 0; background: var(--bg); }
   font-family: "Consolas", "Courier New", monospace;
   color: #c8ff90;
   text-shadow: 0 0 4px rgba(136, 255, 96, 0.5);
-  font-size: 14px;
+  font-size: 12.5px;
   line-height: 1.4;
   letter-spacing: 0.4px;
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 16px 20px 8px 20px;
+  padding: 14px 18px 8px 18px;
   -webkit-user-select: none;
   user-select: none;
   box-sizing: border-box;
@@ -849,16 +852,16 @@ html, body, #root { height: 100%; margin: 0; background: var(--bg); }
   border-bottom: 1px solid rgba(136, 255, 96, 0.45);
 }
 .pip-statbar-title {
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 700;
-  letter-spacing: 2.5px;
+  letter-spacing: 2px;
   color: #d6ffb0;
 }
 .pip-statbar-stats {
   display: flex;
   flex-wrap: wrap;
-  gap: 18px;
-  font-size: 12px;
+  gap: 16px;
+  font-size: 11px;
   letter-spacing: 1px;
   color: #88ff60;
 }
@@ -876,10 +879,10 @@ html, body, #root { height: 100%; margin: 0; background: var(--bg); }
 }
 .pip-tab {
   cursor: pointer;
-  padding: 4px 14px;
-  font-size: 13px;
+  padding: 4px 12px;
+  font-size: 11.5px;
   font-weight: 700;
-  letter-spacing: 1.5px;
+  letter-spacing: 1.3px;
   border: 1px solid transparent;
   border-bottom: none;
   color: #b0e088;
@@ -928,20 +931,20 @@ html, body, #root { height: 100%; margin: 0; background: var(--bg); }
   margin-bottom: 4px;
   color: #88ff60;
   font-weight: 700;
-  letter-spacing: 1.5px;
-  font-size: 12px;
+  letter-spacing: 1.3px;
+  font-size: 11px;
 }
 
 .pip-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 3px 6px;
+  padding: 2px 6px;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 13px;
+  font-size: 11.5px;
 }
 .pip-row.is-active {
   color: #f4ffce;
@@ -981,9 +984,9 @@ html, body, #root { height: 100%; margin: 0; background: var(--bg); }
   height: 156px;
 }
 .pip-detail-name {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
-  letter-spacing: 1.5px;
+  letter-spacing: 1.3px;
   color: #f4ffce;
   text-align: center;
   margin-top: 4px;
@@ -991,17 +994,17 @@ html, body, #root { height: 100%; margin: 0; background: var(--bg); }
 .pip-detail-rule {
   color: rgba(136, 255, 96, 0.55);
   letter-spacing: -1px;
-  font-size: 12px;
+  font-size: 11px;
   width: 100%;
   text-align: center;
 }
 .pip-detail-line {
-  font-size: 12px;
-  letter-spacing: 0.6px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
   color: #b8e890;
 }
 .pip-detail-paragraph {
-  font-size: 12.5px;
+  font-size: 11.5px;
   line-height: 1.55;
   color: #c8ff90;
 }

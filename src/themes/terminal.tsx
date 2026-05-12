@@ -52,7 +52,7 @@ function TerminalScreenOverlay() {
         aria-hidden
         style={clipPath ? { clipPath, WebkitClipPath: clipPath } : undefined}
       />
-      {/* Декорации (винты + гравировка) — отдельный слой, без clip */}
+      {/* Декорации (винты + гравировка + наклейка) — отдельный слой, без clip */}
       <div className="terminal-bezel" aria-hidden>
         <span className="terminal-bezel-screw tl" />
         <span className="terminal-bezel-screw tr" />
@@ -60,6 +60,7 @@ function TerminalScreenOverlay() {
         <span className="terminal-bezel-screw br" />
         <div className="terminal-bezel-brand">ROBCO INDUSTRIES</div>
         <div className="terminal-bezel-model">MODEL: TERMLINK-30</div>
+        <TerminalRobcoSticker />
       </div>
     </div>
   );
@@ -330,7 +331,6 @@ export const TERMINAL_DECORATIONS: ThemeDecorations = {
   ScreenOverlay: TerminalScreenOverlay,
   FooterRightExtras: TerminalPowerLED,
   BootSequence: TerminalBootSequence,
-  NavbarOverlay: TerminalRobcoSticker,
   SidebarShell: TerminalSidebarShell,
   SidebarContent: TerminalSidebarContent,
 };
