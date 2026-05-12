@@ -224,10 +224,13 @@ function TerminalSidebarShell({ open, children }: SidebarShellProps) {
     if (!panel) return;
     snapInFlight.current = true;
     try {
+      // scale: 2 — снапшот в двойном разрешении. После drawImage в
+       // offscreen (CSS-pixel size) браузер даунсемплит с антиалиасом,
+       // даёт более чёткий текст после прохождения через шейдер.
       const snap = await html2canvas(panel, {
         backgroundColor: null,
         logging: false,
-        scale: 1,
+        scale: 2,
       });
       snapCache.current = snap;
       redrawOffscreen();

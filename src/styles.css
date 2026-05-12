@@ -802,6 +802,25 @@ html, body, #root { height: 100%; margin: 0; background: var(--bg); }
 .terminal-sidebar-panel .tool-btn-mantine {
   font-weight: 700 !important;
 }
+/* Поднимаем размеры шрифтов на 2-3px чтобы текст выживал после барель-сжатия
+   у краёв и downsampling'а в WebGL-композите. */
+.terminal-sidebar-panel .tool-btn-mantine {
+  font-size: 13px !important;
+  letter-spacing: 0.4px !important;
+}
+.terminal-sidebar-panel .mantine-Tabs-tab {
+  font-size: 12px !important;
+}
+.terminal-sidebar-panel .mantine-Text-root,
+.terminal-sidebar-panel .mantine-Select-input,
+.terminal-sidebar-panel .mantine-Switch-label,
+.terminal-sidebar-panel .mantine-SegmentedControl-label {
+  font-size: 12px !important;
+}
+.terminal-sidebar-panel .tile-btn-mantine span,
+.terminal-sidebar-panel .tile-btn-mantine div {
+  font-size: 12px !important;
+}
 
 .terminal-sidebar-content {
   position: absolute;
