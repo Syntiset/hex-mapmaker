@@ -1,19 +1,21 @@
-import { Box, ScrollArea } from "@mantine/core";
+import { Box } from "@mantine/core";
 import { Toolbar } from "./Toolbar";
 import { TilePalette } from "./TilePalette";
 import { useThemeDecorations } from "../themes/registry";
 
-/** Содержимое сайдбара без позиционирования — это работа SidebarShell. */
+/** Содержимое сайдбара без позиционирования — это работа SidebarShell.
+ *  ВАЖНО: явный width:100% + min-width:0 на скроллере, иначе flex-child
+ *  раскроется по natural width контента и выедет за границы. */
 export function Sidebar() {
   const decor = useThemeDecorations();
   return (
-    <Box className="app-sidebar-inner">
-      <ScrollArea scrollbarSize={6} type="hover" style={{ flex: 1, minHeight: 0 }}>
+    <div className="app-sidebar-inner">
+      <div className="app-sidebar-scroll">
         <Toolbar />
         <Box mt="md" />
         <TilePalette />
-      </ScrollArea>
+      </div>
       {decor.NavbarOverlay && <decor.NavbarOverlay />}
-    </Box>
+    </div>
   );
 }

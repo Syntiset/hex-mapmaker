@@ -700,9 +700,27 @@ html, body, #root { height: 100%; margin: 0; background: var(--bg); }
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
   padding: 8px;
   gap: 8px;
   overflow: hidden;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.app-sidebar-scroll {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(136, 255, 96, 0.3) transparent;
+}
+.app-sidebar-scroll::-webkit-scrollbar { width: 6px; }
+.app-sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(136, 255, 96, 0.25);
+  border-radius: 3px;
 }
 
 /* Default theme sidebar — стандартная панель */
