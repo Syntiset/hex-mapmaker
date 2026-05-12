@@ -4,22 +4,25 @@ import { FALLOUT_TILE_CATEGORIES } from "../tiles/fallout";
 import type { BiomeDef, TileDef } from "../tiles/types";
 import { drawBiomeRich, drawHexStroke, drawIconEnhanced, pathHex } from "../render/drawHex";
 
-const TOOLS: { id: Tool; key: string; label: string }[] = [
-  { id: "paint",      key: "P", label: "PAINT" },
-  { id: "erase",      key: "E", label: "ERASE" },
-  { id: "road",       key: "R", label: "ROAD" },
-  { id: "road-erase", key: "X", label: "ROAD-X" },
-  { id: "label",      key: "L", label: "LABEL" },
-  { id: "pan",        key: "V", label: "PAN" },
+const TOOLS: { id: Tool; key: string; label: string; desc: string }[] = [
+  { id: "paint",      key: "P", label: "PAINT",     desc: "Покрасить гекс активным биомом/тайлом." },
+  { id: "erase",      key: "E", label: "ERASE",     desc: "Стереть биом или тайл из гекса." },
+  { id: "road",       key: "R", label: "ROAD",      desc: "Рисовать дорогу (snap-to-hex или free-hand)." },
+  { id: "road-erase", key: "X", label: "ROAD-X",    desc: "Удалить дорогу из выбранного гекса." },
+  { id: "label",      key: "L", label: "LABEL",     desc: "Поставить текстовую подпись." },
+  { id: "pan",        key: "V", label: "PAN",       desc: "Двигать камеру (зажатый палец)." },
 ];
 
-const PREVIEW_SIZE = 96;
+const TABS = ["BIOMES", "TILES", "TOOLS", "ROADS", "INFO"] as const;
+type Tab = typeof TABS[number];
+
+const PREVIEW_LG = 156;
 
 function HexPreview({
   biome,
   tile,
-  size = PREVIEW_SIZE,
-}: { biome: BiomeDef; tile?: TileDef; size?: number }) {
+  size,
+}: { biome: BiomeDef; tile?: TileDef; size: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const c = ref.current;
@@ -38,14 +41,11 @@ function HexPreview({
     if (tile) drawIconEnhanced(ctx, 0, 0, cx, cy, hexS, tile);
     drawHexStroke(ctx, cx, cy, hexS, biome.stroke, 1);
   }, [biome, tile, size]);
-  return <canvas ref={ref} width={size} height={size} className="cli-hex-preview" />;
+  return <canvas ref={ref} width={size} height={size} className="pip-hex-preview" />;
 }
 
 function pad2(n: number): string { return n < 10 ? `0${n}` : `${n}`; }
-
-function asLabel(s: string): string {
-  return s.toUpperCase().replace(/Ё/g, "Е");
-}
+function asLabel(s: string): string { return s.toUpperCase().replace(/Ё/g, "Е"); }
 
 export function TerminalSidebarContent() {
   const tool = useMapStore((s) => s.tool);
@@ -65,11 +65,18 @@ export function TerminalSidebarContent() {
   const tiles = useMapStore((s) => s.tiles);
   const activeTileId = useMapStore((s) => s.activeTileId);
   const setActiveTile = useMapStore((s) => s.setActiveTile);
+  const grid = useMapStore((s) => s.grid);
 
+  const [tab, setTab] = useState<Tab>("BIOMES");
   const [category, setCategory] = useState<string>("all");
+  const [hoverBiome, setHoverBiome] = useState<string | null>(null);
+  const [hoverTile, setHoverTile] = useState<string | null>(null);
 
   const activeBiome = biomes.find((b) => b.id === activeBiomeId) ?? biomes[0];
   const activeTile = tiles.find((t) => t.id === activeTileId) ?? tiles[0];
+  const previewBiome = hoverBiome ? biomes.find((b) => b.id === hoverBiome) ?? activeBiome : activeBiome;
+  const previewTile = hoverTile ? tiles.find((t) => t.id === hoverTile) ?? activeTile : activeTile;
+  const activeToolDef = TOOLS.find((t) => t.id === tool) ?? TOOLS[0];
 
   const visibleTiles = (() => {
     if (category === "all") return tiles;
@@ -83,7 +90,6 @@ export function TerminalSidebarContent() {
     const cur = useMapStore.getState().tool;
     if (cur !== "paint" && cur !== "erase") setTool("paint");
   }
-
   function onPickBiome(id: string) {
     setActiveBiome(id as never);
     setPaintMode("biome");
@@ -95,101 +101,212 @@ export function TerminalSidebarContent() {
     ensurePaintTool();
   }
 
-  const categories: { id: string; name: string }[] = [
-    { id: "all", name: "ALL" },
-    ...FALLOUT_TILE_CATEGORIES.map((c) => ({ id: c.id, name: asLabel(c.name).slice(0, 6) })),
-  ];
+  const categories = [{ id: "all", name: "ALL" }, ...FALLOUT_TILE_CATEGORIES];
 
   return (
-    <div className="cli">
-      <div className="cli-header">&gt; ROBCO MAP EDITOR v1.7</div>
-      <div className="cli-rule">─────────────────────────</div>
-
-      <div className="cli-section">&gt; MODE</div>
-      <div className="cli-row" onClick={() => setPaintMode("biome")}>
-        {paintMode === "biome" ? "▶" : " "} [B] BIOME
-      </div>
-      <div className="cli-row" onClick={() => setPaintMode("tile")}>
-        {paintMode === "tile" ? "▶" : " "} [T] TILE
-      </div>
-
-      <div className="cli-section">&gt; TOOL</div>
-      {TOOLS.map((t) => (
-        <div key={t.id} className={`cli-row ${tool === t.id ? "is-active" : ""}`} onClick={() => setTool(t.id)}>
-          {tool === t.id ? "▶" : " "} [{t.key}] {t.label}
+    <div className="pip">
+      <div className="pip-statbar">
+        <div className="pip-statbar-title">ROBCO MAP EDITOR v1.7</div>
+        <div className="pip-statbar-stats">
+          <span>MODE: <b>{paintMode === "biome" ? "BIOME" : "TILE"}</b></span>
+          <span>TOOL: <b>{activeToolDef.label}</b></span>
+          <span>GRID: <b>{grid.cols}×{grid.rows}</b></span>
         </div>
-      ))}
+      </div>
 
-      <div className="cli-section">&gt; ROAD</div>
-      <div className="cli-roads">
-        {roads.map((r) => (
-          <span
-            key={r.id}
-            className={`cli-tag ${activeRoadId === r.id ? "is-active" : ""}`}
-            onClick={() => { setActiveRoad(r.id); setTool("road"); }}
+      <div className="pip-tabs">
+        {TABS.map((t) => (
+          <div
+            key={t}
+            className={`pip-tab ${tab === t ? "is-active" : ""}`}
+            onClick={() => setTab(t)}
           >
-            {asLabel(r.name)}
-          </span>
+            {t}
+          </div>
         ))}
       </div>
-      <div className="cli-row cli-toggle" onClick={toggleFreeHandRoad}>
-        [{freeHandRoad ? "X" : " "}] FREE-HAND
-      </div>
-      <div className="cli-row cli-toggle" onClick={toggleGrid}>
-        [{showGrid ? "X" : " "}] GRID
-      </div>
 
-      <div className="cli-split">
-        <div className="cli-list">
-          <div className="cli-section">&gt; BIOMES</div>
-          {biomes.map((b, i) => (
-            <div
-              key={b.id}
-              className={`cli-row ${paintMode === "biome" && activeBiomeId === b.id ? "is-active" : ""}`}
-              onClick={() => onPickBiome(b.id)}
-            >
-              {paintMode === "biome" && activeBiomeId === b.id ? "▶" : " "} [{pad2(i + 1)}] {asLabel(b.name)}
-            </div>
-          ))}
-
-          <div className="cli-section">&gt; TILES</div>
-          <div className="cli-cats">
-            {categories.map((c) => (
-              <span
-                key={c.id}
-                className={`cli-tag ${category === c.id ? "is-active" : ""}`}
-                onClick={() => setCategory(c.id)}
+      {tab === "BIOMES" && (
+        <div className="pip-body">
+          <div className="pip-col-list">
+            <div className="pip-list-header">BIOMES ({biomes.length})</div>
+            {biomes.map((b, i) => (
+              <div
+                key={b.id}
+                className={`pip-row ${paintMode === "biome" && activeBiomeId === b.id ? "is-active" : ""}`}
+                onClick={() => onPickBiome(b.id)}
+                onPointerEnter={() => setHoverBiome(b.id)}
+                onPointerLeave={() => setHoverBiome(null)}
               >
-                {c.name}
-              </span>
+                <span className="pip-row-marker">{paintMode === "biome" && activeBiomeId === b.id ? "▶" : " "}</span>
+                <span className="pip-row-id">[{pad2(i + 1)}]</span>
+                <span className="pip-row-name">{asLabel(b.name)}</span>
+              </div>
             ))}
           </div>
-          {visibleTiles.map((t, i) => (
-            <div
-              key={t.id}
-              className={`cli-row ${paintMode === "tile" && activeTileId === t.id ? "is-active" : ""}`}
-              onClick={() => onPickTile(t.id)}
-            >
-              {paintMode === "tile" && activeTileId === t.id ? "▶" : " "} [{pad2(i + 1)}] {asLabel(t.name)}
+          <div className="pip-col-detail">
+            <HexPreview biome={previewBiome} size={PREVIEW_LG} />
+            <div className="pip-detail-name">{asLabel(previewBiome.name)}</div>
+            <div className="pip-detail-rule">─────────────</div>
+            <div className="pip-detail-line">FILL: <span style={{ color: previewBiome.fill }}>■■■</span></div>
+            <div className="pip-detail-line">STROKE: <span style={{ color: previewBiome.stroke }}>━━</span></div>
+            {previewBiome.decoration && (
+              <div className="pip-detail-line">DECOR: {previewBiome.decoration.kind.toUpperCase()}</div>
+            )}
+            {previewBiome.glow && (
+              <div className="pip-detail-line">GLOW: ON</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab === "TILES" && (
+        <div className="pip-body">
+          <div className="pip-col-list">
+            <div className="pip-list-header">
+              TILES ({visibleTiles.length}) │ {asLabel(activeBiome.name)}
             </div>
-          ))}
+            <div className="pip-cats">
+              {categories.map((c) => (
+                <span
+                  key={c.id}
+                  className={`pip-tag ${category === c.id ? "is-active" : ""}`}
+                  onClick={() => setCategory(c.id)}
+                >
+                  {asLabel(c.name)}
+                </span>
+              ))}
+            </div>
+            {visibleTiles.map((t, i) => (
+              <div
+                key={t.id}
+                className={`pip-row ${paintMode === "tile" && activeTileId === t.id ? "is-active" : ""}`}
+                onClick={() => onPickTile(t.id)}
+                onPointerEnter={() => setHoverTile(t.id)}
+                onPointerLeave={() => setHoverTile(null)}
+              >
+                <span className="pip-row-marker">{paintMode === "tile" && activeTileId === t.id ? "▶" : " "}</span>
+                <span className="pip-row-id">[{pad2(i + 1)}]</span>
+                <span className="pip-row-name">{asLabel(t.name)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="pip-col-detail">
+            <HexPreview biome={activeBiome} tile={previewTile} size={PREVIEW_LG} />
+            <div className="pip-detail-name">{asLabel(previewTile.name)}</div>
+            <div className="pip-detail-rule">─────────────</div>
+            <div className="pip-detail-line">ON: {asLabel(activeBiome.name)}</div>
+          </div>
         </div>
+      )}
 
-        <div className="cli-preview">
-          <div className="cli-preview-block">
-            <HexPreview biome={activeBiome} />
-            <div className="cli-preview-name">{asLabel(activeBiome.name)}</div>
-            <div className="cli-preview-hint">BIOME</div>
+      {tab === "TOOLS" && (
+        <div className="pip-body">
+          <div className="pip-col-list">
+            <div className="pip-list-header">TOOLS</div>
+            <div className="pip-list-header" style={{ marginTop: 4, opacity: 0.7 }}>MODE</div>
+            <div className={`pip-row ${paintMode === "biome" ? "is-active" : ""}`} onClick={() => setPaintMode("biome")}>
+              <span className="pip-row-marker">{paintMode === "biome" ? "▶" : " "}</span>
+              <span className="pip-row-id">[B]</span>
+              <span className="pip-row-name">BIOME</span>
+            </div>
+            <div className={`pip-row ${paintMode === "tile" ? "is-active" : ""}`} onClick={() => setPaintMode("tile")}>
+              <span className="pip-row-marker">{paintMode === "tile" ? "▶" : " "}</span>
+              <span className="pip-row-id">[T]</span>
+              <span className="pip-row-name">TILE</span>
+            </div>
+            <div className="pip-list-header" style={{ marginTop: 8, opacity: 0.7 }}>ACTION</div>
+            {TOOLS.map((t) => (
+              <div key={t.id} className={`pip-row ${tool === t.id ? "is-active" : ""}`} onClick={() => setTool(t.id)}>
+                <span className="pip-row-marker">{tool === t.id ? "▶" : " "}</span>
+                <span className="pip-row-id">[{t.key}]</span>
+                <span className="pip-row-name">{t.label}</span>
+              </div>
+            ))}
           </div>
-          <div className="cli-preview-block">
-            <HexPreview biome={activeBiome} tile={activeTile} />
-            <div className="cli-preview-name">{asLabel(activeTile.name)}</div>
-            <div className="cli-preview-hint">TILE</div>
+          <div className="pip-col-detail pip-col-detail-text">
+            <div className="pip-detail-name">{activeToolDef.label}</div>
+            <div className="pip-detail-rule">─────────────</div>
+            <div className="pip-detail-paragraph">{activeToolDef.desc}</div>
+            <div className="pip-detail-rule">─────────────</div>
+            <div className="pip-detail-line">CURRENT MODE: {paintMode === "biome" ? "BIOME" : "TILE"}</div>
+            <div className="pip-detail-line">ACTIVE BIOME: {asLabel(activeBiome.name)}</div>
+            <div className="pip-detail-line">ACTIVE TILE: {asLabel(activeTile.name)}</div>
           </div>
         </div>
+      )}
+
+      {tab === "ROADS" && (
+        <div className="pip-body">
+          <div className="pip-col-list">
+            <div className="pip-list-header">ROAD TYPES</div>
+            {roads.map((r, i) => (
+              <div
+                key={r.id}
+                className={`pip-row ${activeRoadId === r.id ? "is-active" : ""}`}
+                onClick={() => { setActiveRoad(r.id); setTool("road"); }}
+              >
+                <span className="pip-row-marker">{activeRoadId === r.id ? "▶" : " "}</span>
+                <span className="pip-row-id">[{pad2(i + 1)}]</span>
+                <span className="pip-row-name">{asLabel(r.name)}</span>
+              </div>
+            ))}
+            <div className="pip-list-header" style={{ marginTop: 8 }}>OPTIONS</div>
+            <div className="pip-row pip-toggle" onClick={toggleFreeHandRoad}>
+              <span className="pip-row-marker">[{freeHandRoad ? "X" : " "}]</span>
+              <span className="pip-row-name">FREE-HAND</span>
+            </div>
+          </div>
+          <div className="pip-col-detail pip-col-detail-text">
+            <div className="pip-detail-name">ROADS</div>
+            <div className="pip-detail-rule">─────────────</div>
+            <div className="pip-detail-paragraph">
+              {freeHandRoad
+                ? "Free-hand mode: дорога рисуется по точкам пальцем, без привязки к гексам."
+                : "Snap mode: дорога идёт от центра / угла / середины ребра гекса к соседу."}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === "INFO" && (
+        <div className="pip-body">
+          <div className="pip-col-list">
+            <div className="pip-list-header">SETTINGS</div>
+            <div className="pip-row pip-toggle" onClick={toggleGrid}>
+              <span className="pip-row-marker">[{showGrid ? "X" : " "}]</span>
+              <span className="pip-row-name">GRID OVERLAY</span>
+            </div>
+            <div className="pip-list-header" style={{ marginTop: 8 }}>HOTKEYS</div>
+            <div className="pip-row pip-hint"><span className="pip-row-id">[B]</span><span className="pip-row-name">MODE BIOME</span></div>
+            <div className="pip-row pip-hint"><span className="pip-row-id">[T]</span><span className="pip-row-name">MODE TILE</span></div>
+            <div className="pip-row pip-hint"><span className="pip-row-id">[R]</span><span className="pip-row-name">ROAD TOOL</span></div>
+            <div className="pip-row pip-hint"><span className="pip-row-id">[E]</span><span className="pip-row-name">ERASE</span></div>
+            <div className="pip-row pip-hint"><span className="pip-row-id">[L]</span><span className="pip-row-name">LABEL</span></div>
+            <div className="pip-row pip-hint"><span className="pip-row-id">SP</span><span className="pip-row-name">PAN</span></div>
+            <div className="pip-row pip-hint"><span className="pip-row-id">CZ</span><span className="pip-row-name">UNDO</span></div>
+            <div className="pip-row pip-hint"><span className="pip-row-id">CY</span><span className="pip-row-name">REDO</span></div>
+          </div>
+          <div className="pip-col-detail pip-col-detail-text">
+            <div className="pip-detail-name">ROBCO TERMLINK-30</div>
+            <div className="pip-detail-rule">─────────────</div>
+            <div className="pip-detail-paragraph">
+              UNIFIED OPERATING SYSTEM v1.7. Карта-генератор для пустошного картографа.
+              Все операции необратимы только при выходе. Используй [CZ] для отката.
+            </div>
+            <div className="pip-detail-rule">─────────────</div>
+            <div className="pip-detail-line">GRID: {grid.cols} × {grid.rows}</div>
+            <div className="pip-detail-line">BIOMES LOADED: {biomes.length}</div>
+            <div className="pip-detail-line">TILES LOADED: {tiles.length}</div>
+            <div className="pip-detail-line">ROAD TYPES: {roads.length}</div>
+          </div>
+        </div>
+      )}
+
+      <div className="pip-footer">
+        <span>&gt; READY_</span>
+        <span className="pip-cursor"> </span>
       </div>
-
-      <div className="cli-footer">&gt; READY_<span className="cli-cursor"> </span></div>
     </div>
   );
 }
