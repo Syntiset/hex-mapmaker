@@ -1,5 +1,38 @@
 # 04_changelog.md
 
+## 2026-05-12 — v1.7.0.0.2 — Фикс попадания кликов на устройствах с DPR>1 + GitHub Pages CI
+
+### Главное: правильная сборка композита Konva-слоёв для CRT-постэффекта
+
+На планшете (DPR 2.25) тачи попадали в неправильные хексы — сдвиг рос
+пропорционально расстоянию от верхне-левого угла. На ПК (DPR 1) всё было ок.
+
+Причина: в `CRTOverlay.tsx` в RAF-фрейме собирали композит Konva-канвасов
+для WebGL-текстуры через `cctx.drawImage(c, 0, 0)` без destination size.
+Konva рендерит в pixel buffer `(width × DPR) × (height × DPR)`, а композит
+создан размером `width × height` (CSS пиксели). Без destination size
+`drawImage` копировал raw pixels 1:1 — на DPR=2.25 в композит влезала
+только верхне-левая часть Konva-источника (1/DPR²), визуально это
+выглядело как растянутая в нижне-правый угол карта; клик попадал по
+*визуально-видимой* позиции, но сама визуализация была сдвинутой.
+
+Фикс: `cctx.drawImage(c, 0, 0, width, height)` — явно скейлим источник
+в композит. Координаты на ПК и планшете теперь идентичны.
+
+### GitHub Pages CI
+
+- `.github/workflows/deploy.yml` — workflow: build + deploy в GH Pages
+  на каждый push в `main`. Node 22, `npm install` (lockfile у нас
+  расходится с reality из-за electron-зависимостей, `npm ci` падает).
+- Репо переведён в public — приватные GH Pages только в платных тарифах.
+- URL: https://syntiset.github.io/hex-mapmaker/
+
+### Что сделано в коммитах
+- `b4476e0` — фикс `drawImage` (под кривым именем "debug:" — основная правка
+  была там же где временный debug overlay).
+- `24d4da6` — снят debug overlay после подтверждения фикса на планшете
+  (скрин: ratio konva/finger = 1.000, 1.000).
+
 ## 2026-05-12 — v1.7.0.0.1 — DOM-bezel через clip-path по barrel-curve
 
 Серия точечных правок Terminal темы. Большая часть — переработка того как
