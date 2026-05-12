@@ -97,6 +97,11 @@ function barrelForward(x: number, y: number, w: number, h: number, k: number) {
 export function CRTOverlay({ stageRef, width, height, active, barrel = 0.35, chromatic = 0.003, scanline = 0.14 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  // Инверс-патч на stage.getPointerPosition: Konva получает координаты в
+  // source-системе (там где живёт DOM-сайдбар и где Konva рисует), а
+  // пользователь визуально видит барель-искажённую версию.
+  // Параллельно — ремап кликов: если визуальный клик соответствует source-точке
+  // на DOM-сайдбаре (который сидит ПОД WebGL), пересылаем событие туда.
   useEffect(() => {
     const stage = stageRef.current;
     if (!stage || !active) return;
@@ -110,8 +115,46 @@ export function CRTOverlay({ stageRef, width, height, active, barrel = 0.35, chr
       const h = r && r.height > 0 ? r.height : height;
       return barrelForward(pos.x, pos.y, w, h, barrel);
     };
+
+    const canvasHost = stage.container().closest(".canvas-host") as HTMLElement | null;
+    const REMAP_FLAG = "__crtRemapped";
+    function remap(e: MouseEvent | PointerEvent) {
+      if ((e as unknown as Record<string, boolean>)[REMAP_FLAG]) return;
+      if (!canvasHost) return;
+      const r = canvasHost.getBoundingClientRect();
+      const vx = e.clientX - r.left, vy = e.clientY - r.top;
+      if (vx < 0 || vy < 0 || vx > r.width || vy > r.height) return;
+      const ux = vx / r.width - 0.5, uy = vy / r.height - 0.5;
+      const r2 = ux * ux + uy * uy;
+      const sx = (ux + ux * barrel * r2 + 0.5) * r.width;
+      const sy = (uy + uy * barrel * r2 + 0.5) * r.height;
+      const target = document.elementFromPoint(r.left + sx, r.top + sy);
+      if (!target || !target.closest(".terminal-sidebar-root")) return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      const isPointer = e.type.startsWith("pointer");
+      const init: PointerEventInit = {
+        bubbles: true,
+        cancelable: true,
+        clientX: r.left + sx,
+        clientY: r.top + sy,
+        button: e.button,
+        buttons: e.buttons,
+        pointerId: (e as PointerEvent).pointerId ?? 1,
+        pointerType: (e as PointerEvent).pointerType ?? "mouse",
+        isPrimary: true,
+      };
+      const ne = isPointer ? new PointerEvent(e.type, init) : new MouseEvent(e.type, init);
+      (ne as unknown as Record<string, boolean>)[REMAP_FLAG] = true;
+      target.dispatchEvent(ne);
+    }
+
+    const types: (keyof DocumentEventMap)[] = ["pointerdown", "pointerup", "click"];
+    types.forEach((t) => document.addEventListener(t, remap as EventListener, true));
+
     return () => {
       if (stageRef.current === stage) stage.getPointerPosition = orig;
+      types.forEach((t) => document.removeEventListener(t, remap as EventListener, true));
     };
   }, [stageRef, active, width, height, barrel]);
 
