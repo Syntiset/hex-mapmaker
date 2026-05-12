@@ -24,10 +24,7 @@ export default function App() {
   const [size, setSize] = useState({ w: 800, h: 600 });
   const [hoverKey, setHoverKey] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
-    if (typeof window === "undefined") return true;
-    return window.innerWidth >= 900;
-  });
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const decor = useThemeDecorations();
   const themeId = useThemeStore((s) => s.theme);
   const crtActive = themeId === "terminal";
