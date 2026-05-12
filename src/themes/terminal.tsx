@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import html2canvas from "html2canvas-pro";
 import type { ThemeDecorations, SidebarShellProps } from "./types";
-import { buildBezelClipPath, buildBarrelScreenPath } from "../render/barrelPath";
+import { buildBezelClipPath } from "../render/barrelPath";
+import { compositeRegistry } from "../render/compositeRegistry";
 
 /**
  * Полноэкранный overlay поверх канваса:
@@ -152,21 +154,33 @@ function TerminalBootSequence() {
 }
 
 /**
- * Сайдбар внутри CRT-экрана. Сам контейнер занимает всю площадь canvas-host
- * и клипается тем же barrel-curve что и экран — благодаря этому панель не
- * лезет в зону bezel. Внутри — позиционированная панель ширины 340px со
- * слайд-анимацией. Curve trims углы панели по форме экрана.
+ * Сайдбар внутри CRT-экрана. DOM сидит ПОД WebGL-канвасом (z:2 vs z:3) —
+ * WebGL рисует поверх. Параллельно держим offscreen-канвас размера
+ * canvas-host, в который html2canvas периодически снимает живой DOM
+ * сайдбара. Offscreen зарегистрирован в compositeRegistry — CRTOverlay
+ * подмешивает его в композит-текстуру каждый кадр, после чего шейдер
+ * применяет к нему ту же бочку/хроматику/сканлайны что и к карте.
+ *
+ * Клики проваливаются сквозь pointer-events:none WebGL-канвас на DOM-сайдбар
+ * под ним (DOM хоть и невидим визуально, но receives events).
  */
 function TerminalSidebarShell({ open, children }: SidebarShellProps) {
-  const [size, setSize] = useState({ w: 0, h: 0 });
-  const barrel = 0.35;
+  const panelRef = useRef<HTMLDivElement>(null);
+  const offRef = useRef<HTMLCanvasElement>(null);
+  const snapCache = useRef<HTMLCanvasElement | null>(null);
+  const snapTimer = useRef<number | null>(null);
+  const snapInFlight = useRef(false);
 
+  // Размер canvas-host для offscreen-канваса
   useEffect(() => {
     const host = document.querySelector(".canvas-host") as HTMLElement | null;
-    if (!host) return;
+    const off = offRef.current;
+    if (!host || !off) return;
     const update = () => {
       const r = host.getBoundingClientRect();
-      setSize({ w: r.width, h: r.height });
+      if (off.width !== Math.round(r.width)) off.width = Math.round(r.width);
+      if (off.height !== Math.round(r.height)) off.height = Math.round(r.height);
+      scheduleSnapshot();
     };
     update();
     const ro = new ResizeObserver(update);
@@ -174,23 +188,102 @@ function TerminalSidebarShell({ open, children }: SidebarShellProps) {
     return () => ro.disconnect();
   }, []);
 
-  const clipPath = useMemo(() => {
-    if (size.w <= 0 || size.h <= 0) return undefined;
-    return `path('${buildBarrelScreenPath(barrel, size.w, size.h)}')`;
-  }, [barrel, size.w, size.h]);
+  // Регистрация offscreen в композит-цепочке
+  useEffect(() => {
+    const off = offRef.current;
+    if (!off) return;
+    compositeRegistry.add(off);
+    return () => { compositeRegistry.remove(off); };
+  }, []);
+
+  // Отрисовка кэшированного снапшота в offscreen по текущему DOM-положению panel.
+  function redrawOffscreen() {
+    const off = offRef.current;
+    const snap = snapCache.current;
+    const panel = panelRef.current;
+    if (!off || !snap || !panel) return;
+    const ctx = off.getContext("2d");
+    if (!ctx) return;
+    const host = panel.closest(".canvas-host") as HTMLElement | null;
+    if (!host) return;
+    const hostRect = host.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    ctx.clearRect(0, 0, off.width, off.height);
+    ctx.drawImage(
+      snap,
+      Math.round(panelRect.left - hostRect.left),
+      Math.round(panelRect.top - hostRect.top),
+      Math.round(panelRect.width),
+      Math.round(panelRect.height),
+    );
+  }
+
+  async function takeSnapshot() {
+    if (snapInFlight.current) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    snapInFlight.current = true;
+    try {
+      const snap = await html2canvas(panel, {
+        backgroundColor: null,
+        logging: false,
+        scale: 1,
+      });
+      snapCache.current = snap;
+      redrawOffscreen();
+    } catch (err) {
+      console.warn("[TerminalSidebarShell] snapshot failed", err);
+    } finally {
+      snapInFlight.current = false;
+    }
+  }
+
+  function scheduleSnapshot() {
+    if (snapTimer.current != null) window.clearTimeout(snapTimer.current);
+    snapTimer.current = window.setTimeout(() => { void takeSnapshot(); }, 60);
+  }
+
+  // Mutation observer — пересъёмка при изменениях DOM (выбор тайла, активный
+  // инструмент, hover-эффекты на кнопках и т.д.)
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    const mo = new MutationObserver(scheduleSnapshot);
+    mo.observe(panel, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      characterData: true,
+    });
+    return () => mo.disconnect();
+  }, []);
+
+  // Анимация slide-in: пока CSS-transition двигает .terminal-sidebar-panel,
+  // requestAnimationFrame перерисовывает offscreen с кэшированным snapshot'ом
+  // по новой DOM-позиции. Бочка применяется WebGL'ом — анимация выглядит
+  // искажённой по той же curve что и весь экран.
+  useEffect(() => {
+    let raf = 0;
+    let frames = 0;
+    const maxFrames = 30; // ~500ms при 60fps
+    const loop = () => {
+      redrawOffscreen();
+      frames++;
+      if (frames < maxFrames) raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [open]);
 
   return (
-    <div
-      className={`terminal-sidebar-root ${open ? "is-open" : ""}`}
-      aria-hidden={!open}
-      style={clipPath ? { clipPath, WebkitClipPath: clipPath } : undefined}
-    >
-      <div className="terminal-sidebar-panel">
+    <div className={`terminal-sidebar-root ${open ? "is-open" : ""}`} aria-hidden={!open}>
+      <div ref={panelRef} className="terminal-sidebar-panel">
         <div className="terminal-sidebar-bg" aria-hidden />
         <div className="terminal-sidebar-scanlines" aria-hidden />
         <div className="terminal-sidebar-content">{children}</div>
         <div className="terminal-sidebar-edge" aria-hidden />
       </div>
+      <canvas ref={offRef} className="terminal-sidebar-offscreen" aria-hidden />
     </div>
   );
 }

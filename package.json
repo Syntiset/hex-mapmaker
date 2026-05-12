@@ -27,6 +27,7 @@
     "@types/file-saver": "^2.0.7",
     "alea": "^1.0.1",
     "file-saver": "^2.0.5",
+    "html2canvas-pro": "^2.0.2",
     "konva": "^10.3.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",

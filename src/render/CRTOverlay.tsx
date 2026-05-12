@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type Konva from "konva";
+import { compositeRegistry } from "./compositeRegistry";
 
 interface Props {
   stageRef: React.RefObject<Konva.Stage | null>;
@@ -194,6 +195,11 @@ export function CRTOverlay({ stageRef, width, height, active, barrel = 0.35, chr
         // size drawImage скопирует raw pixels 1:1 — на DPR>1 это обрежет
         // правую/нижнюю часть. С destination size source скейлится в композит.
         cs.forEach((c) => cctx.drawImage(c as HTMLCanvasElement, 0, 0, width, height));
+        // Дополнительные источники (sidebar snapshot и т.д.) поверх Konva.
+        // Они уже размера canvas-host, рисуются 1:1.
+        compositeRegistry.forEach((c) => {
+          if (c.width > 0 && c.height > 0) cctx.drawImage(c, 0, 0, width, height);
+        });
         gl!.bindTexture(gl!.TEXTURE_2D, tex);
         gl!.texImage2D(gl!.TEXTURE_2D, 0, gl!.RGBA, gl!.RGBA, gl!.UNSIGNED_BYTE, composite);
         gl!.clear(gl!.COLOR_BUFFER_BIT);
