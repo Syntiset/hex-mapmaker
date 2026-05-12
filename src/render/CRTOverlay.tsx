@@ -100,65 +100,17 @@ export function CRTOverlay({ stageRef, width, height, active, barrel = 0.35, chr
     const stage = stageRef.current;
     if (!stage || !active) return;
     const orig = stage.getPointerPosition.bind(stage);
-
-    const info = document.createElement("div");
-    info.style.cssText = "position:fixed;top:8px;left:8px;z-index:99999;background:rgba(0,0,0,0.85);color:#0f0;font:11px monospace;padding:6px 8px;pointer-events:none;white-space:pre;border:1px solid #0f0;";
-    document.body.appendChild(info);
-    const dotFinger = document.createElement("div");
-    const dotKonva = document.createElement("div");
-    const dotBF = document.createElement("div");
-    for (const [d, c] of [[dotFinger, "#ff0"], [dotKonva, "#0ff"], [dotBF, "#f0f"]] as const) {
-      d.style.cssText = `position:fixed;width:14px;height:14px;border-radius:50%;background:${c};border:2px solid #000;z-index:99999;pointer-events:none;transform:translate(-50%,-50%);display:none;`;
-      document.body.appendChild(d);
-    }
-
-    function onTouch(e: PointerEvent | TouchEvent) {
-      const host = stage!.container();
-      const r = host.getBoundingClientRect();
-      let cx = 0, cy = 0;
-      if ("touches" in e && e.touches.length) { cx = e.touches[0].clientX; cy = e.touches[0].clientY; }
-      else if ("clientX" in e) { cx = (e as PointerEvent).clientX; cy = (e as PointerEvent).clientY; }
-      const fx = cx - r.left, fy = cy - r.top;
-      const konva = orig();
-      const w = r.width, h = r.height;
-      const bf = konva ? barrelForward(konva.x, konva.y, w, h, barrel) : null;
-      dotFinger.style.display = "block";
-      dotFinger.style.left = cx + "px"; dotFinger.style.top = cy + "px";
-      if (konva) {
-        dotKonva.style.display = "block";
-        dotKonva.style.left = (r.left + konva.x) + "px"; dotKonva.style.top = (r.top + konva.y) + "px";
-      }
-      if (bf) {
-        dotBF.style.display = "block";
-        dotBF.style.left = (r.left + bf.x) + "px"; dotBF.style.top = (r.top + bf.y) + "px";
-      }
-      info.textContent =
-        `host: ${w.toFixed(0)}x${h.toFixed(0)} @ (${r.left.toFixed(0)},${r.top.toFixed(0)})\n` +
-        `DPR: ${window.devicePixelRatio}\n` +
-        `finger(client): (${cx.toFixed(0)},${cy.toFixed(0)})\n` +
-        `finger(in host): (${fx.toFixed(0)},${fy.toFixed(0)})  [YELLOW]\n` +
-        `konva orig:     ${konva ? `(${konva.x.toFixed(0)},${konva.y.toFixed(0)})` : "null"}  [CYAN]\n` +
-        `after barrel:   ${bf ? `(${bf.x.toFixed(0)},${bf.y.toFixed(0)})` : "null"}  [MAGENTA]\n` +
-        `ratio konva/finger: ${konva && fx ? (konva.x / fx).toFixed(3) : "?"}, ${konva && fy ? (konva.y / fy).toFixed(3) : "?"}`;
-    }
-    const host = stage.container();
-    host.addEventListener("pointerdown", onTouch as EventListener);
-    host.addEventListener("touchstart", onTouch as EventListener, { passive: true });
-
     stage.getPointerPosition = function () {
       const pos = orig();
       if (!pos) return pos;
-      const hostEl = stage.container();
-      const r = hostEl ? hostEl.getBoundingClientRect() : null;
+      const host = stage.container();
+      const r = host ? host.getBoundingClientRect() : null;
       const w = r && r.width > 0 ? r.width : width;
       const h = r && r.height > 0 ? r.height : height;
       return barrelForward(pos.x, pos.y, w, h, barrel);
     };
     return () => {
       if (stageRef.current === stage) stage.getPointerPosition = orig;
-      host.removeEventListener("pointerdown", onTouch as EventListener);
-      host.removeEventListener("touchstart", onTouch as EventListener);
-      info.remove(); dotFinger.remove(); dotKonva.remove(); dotBF.remove();
     };
   }, [stageRef, active, width, height, barrel]);
 
